@@ -1,8 +1,8 @@
-# Rental Price Prediction from Listing Images
+# madrid-rental-vision
 
-Can you predict how much an apartment rents for just by looking at the photos? We built a computer-vision + tabular model on a dataset of ~1,500 Madrid rental listings to find out.
+I wanted to see whether a photo of a flat tells you how much it rents for, on top of the obvious stuff (size, zone, bedrooms). It does. Photos add about +0.05 R² over the tabular baseline, mostly in expensive neighborhoods where listings actually look different from each other.
 
-> **Note**: the listings dataset is not shipped in this repo (kept private for coursework/licensing reasons). The code, trained model artifacts, and evaluation results are public; anyone can adapt the pipeline to their own listings data.
+Dataset isn't in this repo (coursework + licensing). Code, trained models, evaluation results, and the full product layer (Chrome extension + Next.js dashboard) are. Bring your own listings CSV and everything re-runs.
 
 ## Results
 

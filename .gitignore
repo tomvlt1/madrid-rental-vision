@@ -1,0 +1,24 @@
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+data/raw/
+data/processed/*.csv
+data/processed/*.parquet
+!data/processed/embeddings_index.csv
+!data/processed/embeddings_finetuned_index.csv
+!data/processed/text_embeddings_index.csv
+!data/processed/image_quality.csv
+!data/processed/splits.json
+*.npy
+models/*.pt
+models/*.joblib
+
+# frontend
+web/node_modules/
+web/.next/
+web/out/
+web/.env.local
+web/next-env.d.ts
+web/tsconfig.tsbuildinfo
+web/.turbo/

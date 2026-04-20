@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "CasaIntel — Peer rent for Idealista",
+  "version": "0.1.0",
+  "description": "Shows peer-expected rent on Madrid Idealista listings. Backed by a ResNet+GB model trained on 1,470 rentals.",
+  "host_permissions": [
+    "https://www.idealista.com/*",
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.idealista.com/alquiler-viviendas/madrid*",
+        "https://www.idealista.com/inmueble/*"
+      ],
+      "js": ["src/content.js"],
+      "css": ["styles/injected.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "CasaIntel"
+  }
+}

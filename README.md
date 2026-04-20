@@ -23,7 +23,7 @@ Dataset isn't in this repo (coursework + licensing). Code, trained models, evalu
 ## Setup
 
 ```bash
-git clone https://github.com/<your-username>/madrid-rental-vision.git
+git clone https://github.com/tomvlt1/madrid-rental-vision.git
 cd madrid-rental-vision
 python3 -m venv venv
 source venv/bin/activate

@@ -14,17 +14,17 @@ Injects peer-expected rent badges and detail panels onto Madrid rental listing p
 
 ## What it does
 
-- **Search results** — reads each card (price, size, rooms, location) and calls `/predict-live` in *tabular* mode. Instant soft badges showing peer estimate.
-- **Detail pages** — reads full listing features + image URLs + description, calls `/predict-live` in *full* mode. Backend runs the fine-tuned ResNet + sentence-transformer + gradient-boosting pipeline and returns a feature-by-feature breakdown.
-- **Gallery overlays** — each listing photo gets a HELPS / HURTS / NEUTRAL tag based on its per-image model activation (rank within the listing).
+- **Search results.** Reads each card (price, size, rooms, location) and calls `/predict-live` in *tabular* mode. Instant soft badges showing peer estimate.
+- **Detail pages.** Reads full listing features + image URLs + description, calls `/predict-live` in *full* mode. Backend runs the fine-tuned ResNet + sentence-transformer + gradient-boosting pipeline and returns a feature-by-feature breakdown.
+- **Gallery overlays.** Each listing photo gets a HELPS / HURTS / NEUTRAL tag based on its per-image model activation (rank within the listing).
 
 ## Diagnosis logic
 
 The detail panel labels the listing based on the gap between asking price and model prediction:
 
-- **Priced on peer** — gap smaller than the model's typical ±€457 error. Treated as noise.
-- **Above peer** — asking higher than predicted by more than MAE.
-- **Below peer** — asking lower than predicted by more than MAE.
+- **Priced on peer.** Gap smaller than the model's typical ±€457 error. Treated as noise.
+- **Above peer.** Asking higher than predicted by more than MAE.
+- **Below peer.** Asking lower than predicted by more than MAE.
 
 ## Security / privacy
 

@@ -51,7 +51,7 @@ Images should be downloaded to `data/raw/images/<listing_id>/<idx>.jpg`.
 
 ## Pipeline
 
-Run in order — each step depends on the previous.
+Run in order. Each step depends on the previous.
 
 ### 1. Build the shared split manifest
 
@@ -118,7 +118,7 @@ python -m src.models.inference --listing 101580197
 # predict from custom inputs
 python -m src.models.inference --sqft 80 --rooms 2 --bathrooms 1 --zone Centro
 
-# demo mode — runs 3 examples (cheap, mid, expensive)
+# demo mode, runs 3 examples (cheap, mid, expensive)
 python -m src.models.inference
 ```
 
@@ -164,16 +164,16 @@ We tried neural nets for the regression and they overfit with ~1,000 training sa
 
 ## Potential improvements
 
-- **Attention pooling instead of mean pooling** — let the model learn which photos matter most for predicting price.
-- **CLIP instead of ResNet** — trained on image-text pairs so it already has some understanding of concepts like "luxury" or "modern." Could give better embeddings out of the box and enable zero-shot room-type classification.
-- **Per-room-type embeddings** — right now we just average all images together. A kitchen photo and a bathroom photo get mixed into one vector.
-- **Hyperparameter tuning** — we never tuned the gradient boosting (500 trees, max_depth=4, lr=0.05). Grid search or Bayesian optimization would probably squeeze out a couple of points.
-- **Prediction intervals** — MC Dropout or deep ensembles would give per-listing confidence instead of a constant ±MAE band.
-- **More cities** — Barcelona, Valencia to test generalization; temporal re-scrape to get days-on-market signal.
+- **Attention pooling instead of mean pooling.** Let the model learn which photos matter most for predicting price.
+- **CLIP instead of ResNet.** Trained on image-text pairs so it already has some understanding of concepts like "luxury" or "modern." Could give better embeddings out of the box and enable zero-shot room-type classification.
+- **Per-room-type embeddings.** Right now we just average all images together. A kitchen photo and a bathroom photo get mixed into one vector.
+- **Hyperparameter tuning.** We never tuned the gradient boosting (500 trees, max_depth=4, lr=0.05). Grid search or Bayesian optimization would probably squeeze out a couple of points.
+- **Prediction intervals.** MC Dropout or deep ensembles would give per-listing confidence instead of a constant ±MAE band.
+- **More cities.** Barcelona, Valencia to test generalization; temporal re-scrape to get days-on-market signal.
 
 ---
 
-# CasaIntel — browser extension and web app
+# CasaIntel: browser extension and web app
 
 After training the base model we built a small product layer on top: a FastAPI backend that serves predictions, a Next.js dashboard, and a Chrome extension that overlays peer-expected rent on real Madrid rental listings as you browse.
 
@@ -187,16 +187,16 @@ After training the base model we built a small product layer on top: a FastAPI b
 
 **Web app** (`web/`, Next.js): an agency-framed dashboard with three workflows:
 
-1. **Portfolio** — a mixed demo portfolio (6 flagged + 6 healthy listings seeded on first visit). Aggregate stats: managed rent, commission @ 6%, peer-rent gap, potential commission upside × realization-rate slider.
-2. **Listing detail / Action Plan** — photo scorecard with weakest/strongest photos ringed, feature-by-feature breakdown ("Why this number"), action plan bullets (re-shoot / re-price / rewrite), commission upside panel.
-3. **Intake** — paste a listing ID or URL, see its baseline, drop new candidate photos. Uses **replace-worst-N** semantics: your uploads swap out the N weakest existing photos (ranked by precomputed per-photo scores), then the model re-predicts. Honest confidence band: any predicted change smaller than MAE is labeled "inside noise."
+1. **Portfolio.** A mixed demo portfolio (6 flagged + 6 healthy listings seeded on first visit). Aggregate stats: managed rent, commission @ 6%, peer-rent gap, potential commission upside × realization-rate slider.
+2. **Listing detail / Action Plan.** Photo scorecard with weakest/strongest photos ringed, feature-by-feature breakdown ("Why this number"), action plan bullets (re-shoot / re-price / rewrite), commission upside panel.
+3. **Intake.** Paste a listing ID or URL, see its baseline, drop new candidate photos. Uses **replace-worst-N** semantics: your uploads swap out the N weakest existing photos (ranked by precomputed per-photo scores), then the model re-predicts. Honest confidence band: any predicted change smaller than MAE is labeled "inside noise."
 
 ## Dual utility
 
 Same tool, both sides of the transaction:
 
-- **Renter hunting a deal** — blue "below peer" badge flags underpriced listings; red "above peer" flags overpriced ones to skip or negotiate down.
-- **Agent / landlord diagnosing weakness** — the feature breakdown shows exactly which block (tabular / text / photos) is dragging predicted rent down, and the per-photo overlays show which specific images need re-shooting.
+- **Renter hunting a deal.** Blue "below peer" badge flags underpriced listings; red "above peer" flags overpriced ones to skip or negotiate down.
+- **Agent / landlord diagnosing weakness.** The feature breakdown shows exactly which block (tabular / text / photos) is dragging predicted rent down, and the per-photo overlays show which specific images need re-shooting.
 
 ## How to run locally
 

@@ -1,0 +1,207 @@
+{
+  "global": {
+    "n": 1425,
+    "mae_euros": 414.01290731557305,
+    "rmse_euros": 830.3769710051337,
+    "median_abs_error_euros": 227.3690946024467,
+    "p90_abs_error_euros": 827.6598262124062,
+    "p95_abs_error_euros": 1289.943955245527,
+    "p99_abs_error_euros": 3707.548532593499,
+    "max_abs_error_euros": 12358.729519004597,
+    "bias_euros": -96.64746616030838
+  },
+  "tail_concentration": {
+    "top_10pct_listings": 142,
+    "pct_of_total_squared_error_in_top_10pct": 86.55456175453465
+  },
+  "by_price_quartile": {
+    "Q1_cheap": {
+      "n": 371,
+      "price_mean": 1126.26953125,
+      "mae_euros": 183.82187041276057,
+      "rmse_euros": 234.56825800253344,
+      "mape": 16.938531207474558,
+      "bias_euros": 138.89193640894217
+    },
+    "Q2": {
+      "n": 367,
+      "price_mean": 1596.2098388671875,
+      "mae_euros": 206.62636872121067,
+      "rmse_euros": 272.65676395692225,
+      "mape": 12.91836482300087,
+      "bias_euros": 37.45623714871742
+    },
+    "Q3": {
+      "n": 345,
+      "price_mean": 2225.515869140625,
+      "mae_euros": 349.407213433047,
+      "rmse_euros": 477.994923293468,
+      "mape": 15.732398130601855,
+      "bias_euros": -42.83094148823026
+    },
+    "Q4_expensive": {
+      "n": 342,
+      "price_mean": 4407.0029296875,
+      "mae_euros": 951.441851013076,
+      "rmse_euros": 1582.1116732891799,
+      "mape": 18.803411067116556,
+      "bias_euros": -550.3547131763066
+    }
+  },
+  "zone_best_5_mae": [
+    {
+      "zone": "Sur-Sureste",
+      "n": 119,
+      "price_mean": 1202.083984375,
+      "mae_euros": 184.16978524082654,
+      "rmse_euros": 239.9227307849749,
+      "mape": 15.665380145344116
+    },
+    {
+      "zone": "Arganzuela",
+      "n": 52,
+      "price_mean": 1642.40380859375,
+      "mae_euros": 185.39201095755374,
+      "rmse_euros": 231.86762066543417,
+      "mape": 11.672562288023894
+    },
+    {
+      "zone": "Periferia Norte",
+      "n": 182,
+      "price_mean": 1893.6702880859375,
+      "mae_euros": 321.98892196753064,
+      "rmse_euros": 462.4172765059337,
+      "mape": 17.206427526784253
+    },
+    {
+      "zone": "Norte",
+      "n": 233,
+      "price_mean": 2034.2060546875,
+      "mae_euros": 325.0326307583155,
+      "rmse_euros": 488.429435340905,
+      "mape": 15.399025511898214
+    },
+    {
+      "zone": "Chamber\u00ed",
+      "n": 188,
+      "price_mean": 2533.74462890625,
+      "mae_euros": 385.1425026731261,
+      "rmse_euros": 620.3012006848508,
+      "mape": 13.925209706635766
+    }
+  ],
+  "zone_worst_5_mae": [
+    {
+      "zone": "Norte",
+      "n": 233,
+      "price_mean": 2034.2060546875,
+      "mae_euros": 325.0326307583155,
+      "rmse_euros": 488.429435340905,
+      "mape": 15.399025511898214
+    },
+    {
+      "zone": "Chamber\u00ed",
+      "n": 188,
+      "price_mean": 2533.74462890625,
+      "mae_euros": 385.1425026731261,
+      "rmse_euros": 620.3012006848508,
+      "mape": 13.925209706635766
+    },
+    {
+      "zone": "Centro",
+      "n": 291,
+      "price_mean": 2347.852294921875,
+      "mae_euros": 472.2249412520593,
+      "rmse_euros": 1148.6340468979865,
+      "mape": 16.363287266760306
+    },
+    {
+      "zone": "Salamanca-Retiro",
+      "n": 281,
+      "price_mean": 3020.437744140625,
+      "mae_euros": 591.9732005688275,
+      "rmse_euros": 1060.7133258297413,
+      "mape": 16.87883361938757
+    },
+    {
+      "zone": "Oeste",
+      "n": 79,
+      "price_mean": 2826.20263671875,
+      "mae_euros": 606.4367010091767,
+      "rmse_euros": 1158.3411986361718,
+      "mape": 19.87815710231636
+    }
+  ],
+  "worst_10_listings": [
+    {
+      "listing_id": "111142933",
+      "zone": "Centro",
+      "price": 15000.0,
+      "pred_price": 2641.270480995403,
+      "error_eur": -12358.729519004597
+    },
+    {
+      "listing_id": "110971169",
+      "zone": "Centro",
+      "price": 12000.0,
+      "pred_price": 5095.549132612366,
+      "error_eur": -6904.450867387634
+    },
+    {
+      "listing_id": "110483728",
+      "zone": "Centro",
+      "price": 10000.0,
+      "pred_price": 3539.665184421545,
+      "error_eur": -6460.334815578455
+    },
+    {
+      "listing_id": "110962635",
+      "zone": "Centro",
+      "price": 10000.0,
+      "pred_price": 3711.5431070606896,
+      "error_eur": -6288.45689293931
+    },
+    {
+      "listing_id": "111143419",
+      "zone": "Salamanca-Retiro",
+      "price": 14000.0,
+      "pred_price": 7994.703989636106,
+      "error_eur": -6005.296010363894
+    },
+    {
+      "listing_id": "106843213",
+      "zone": "Oeste",
+      "price": 13995.0,
+      "pred_price": 8097.787450261979,
+      "error_eur": -5897.212549738021
+    },
+    {
+      "listing_id": "111158921",
+      "zone": "Salamanca-Retiro",
+      "price": 13000.0,
+      "pred_price": 7308.0983973213515,
+      "error_eur": -5691.9016026786485
+    },
+    {
+      "listing_id": "111027766",
+      "zone": "Salamanca-Retiro",
+      "price": 14500.0,
+      "pred_price": 9572.05541128049,
+      "error_eur": -4927.944588719511
+    },
+    {
+      "listing_id": "110928430",
+      "zone": "Oeste",
+      "price": 12900.0,
+      "pred_price": 8124.905539141779,
+      "error_eur": -4775.094460858221
+    },
+    {
+      "listing_id": "94195640",
+      "zone": "Salamanca-Retiro",
+      "price": 14000.0,
+      "pred_price": 9432.045481195059,
+      "error_eur": -4567.9545188049415
+    }
+  ]
+}

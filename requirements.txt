@@ -13,6 +13,7 @@ seaborn>=0.13
 sentence-transformers>=5.0
 torch>=2.0
 torchvision>=0.15
+transformers>=4.38
 tqdm>=4.65
 umap-learn>=0.5
 uvicorn[standard]>=0.24

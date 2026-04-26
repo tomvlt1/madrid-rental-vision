@@ -1,12 +1,33 @@
 # madrid-rental-vision
 
-I wanted to see whether a photo of a flat tells you how much it rents for, on top of the obvious stuff (size, zone, bedrooms). It does. Photos add about +0.05 R² over the tabular baseline, mostly in expensive neighborhoods where listings actually look different from each other.
+I wanted to see whether a photo of a flat tells you how much it rents for, on top of the obvious stuff (size, zone, bedrooms). It does — and the answer got a lot stronger after a review surfaced two methodology bugs and pushed me to swap the image encoder. The v1 number was R² = 0.838 on 1,425 Madrid listings; the v2 rewrite hits R² = 0.884 on **6,047 listings**, MAE = €274 (a 33% drop from v1's €411).
 
 Dataset isn't in this repo (coursework + licensing). Code, trained models, evaluation results, and the full product layer (Chrome extension + Next.js dashboard) are. Bring your own listings CSV and everything re-runs.
 
 ## Results
 
-5-fold cross-validation (mean ± std across folds, N = 1,425 listings):
+### v2 — full ablation grid, 5-fold CV, **N = 6,047 listings**
+
+This is the headline. Saved to `v2/models/cv_results_full_ablation.json`.
+
+| Model | R² | MAE (€) | RMSE (€) | MAPE (%) |
+|---|---|---|---|---|
+| Ridge (tabular only) | 0.749 ± 0.009 | 417 ± 13 | 746 ± 88 | 19.2 |
+| GB tabular only | 0.802 ± 0.009 | 351 ± 9 | 618 ± 62 | 16.4 |
+| GB text only | 0.381 ± 0.022 | 627 ± 25 | 1042 ± 87 | 30.7 |
+| GB SigLIP image only | 0.662 ± 0.006 | 467 ± 21 | 803 ± 83 | 22.3 |
+| GB tabular + text | 0.832 ± 0.009 | 326 ± 10 | 593 ± 63 | 15.0 |
+| **GB tabular + SigLIP** | **0.882 ± 0.007** | **274 ± 8** | **506 ± 71** | **12.6** |
+| GB text + SigLIP | 0.690 ± 0.004 | 448 ± 21 | 785 ± 84 | 21.1 |
+| **GB tabular + text + SigLIP** | **0.884 ± 0.007** | **274 ± 8** | **507 ± 72** | **12.6** |
+
+**SigLIP adds +0.08 R²** on top of tabular features (vs +0.05 in v1 with ResNet on a smaller dataset). Text becomes essentially redundant once SigLIP is in — the image-text contrastive pretraining already encodes the semantic content the description was contributing.
+
+After post-hoc linear calibration (`v2/calibration.py`), Q4 luxury bias drops from −€280 baseline to −€164 (−41%) at a trivial cost in global MAE. See `v2/README.md` for the full Q4 breakdown.
+
+### v1 — original results, **N = 1,425 listings** (preserved for comparison)
+
+Saved to `models/cv_results.json` and unchanged.
 
 | Model | R² | MAE | MAPE |
 |---|---|---|---|
@@ -16,9 +37,18 @@ Dataset isn't in this repo (coursework + licensing). Code, trained models, evalu
 | + fine-tuned ResNet-50 | 0.835 ± 0.025 | €409 ± 44 | 15.8% ± 1.3% |
 | **+ text + fine-tuned image** | **0.838 ± 0.025** | **€411 ± 41** | **16.0% ± 1.4%** |
 
-**Images add +0.05 R²** on top of tabular features. The fine-tuned vs frozen ResNet gap is essentially zero under CV (+0.002 R²), fine-tuning cost 15 minutes of compute and bought nothing generalizable at this sample size. The photos win comes from ImageNet features alone. Most of the improvement concentrates in expensive neighborhoods (Salamanca, Chamberí) where there's more visual variation between listings.
+> **Why these v1 numbers are lower than the first version of the report:** we originally reported R² = 0.85 on a single 70/15/15 split. A technical review surfaced two methodology bugs that were inflating the number: (1) listing dedup ran only on the URL field, so the same property re-listed under a new ID could straddle train/val/test. We now also dedup on `(price, sqft, rooms, bathrooms, location)` and collapsed **46 re-listings**. (2) The fine-tune script and the downstream dataset each called `train_test_split` independently on differently-ordered DataFrames, so some listings the ResNet was fine-tuned on ended up in the gradient-boosting test set. We now write a single `data/processed/splits.json` manifest and both scripts read from it. Moving from a single-split headline to 5-fold CV also shifted the number slightly: single-split reports R² = 0.823 / MAE = €457 (see `models/results.json`), CV reports R² = 0.838 ± 0.025 / MAE = €411 ± €41 (see `models/cv_results.json`). The CV numbers are the honest headline.
 
-> **Why these numbers are lower than our first report:** we originally reported R² = 0.85 on a single 70/15/15 split. A technical review surfaced two methodology bugs that were inflating the number: (1) listing dedup ran only on the URL field, so the same property re-listed under a new ID could straddle train/val/test. We now also dedup on `(price, sqft, rooms, bathrooms, location)` and collapsed **46 re-listings**. (2) The fine-tune script and the downstream dataset each called `train_test_split` independently on differently-ordered DataFrames, so some listings the ResNet was fine-tuned on ended up in the gradient-boosting test set. We now write a single `data/processed/splits.json` manifest and both scripts read from it. Moving from a single-split headline to 5-fold CV also shifted the number slightly: single-split reports R² = 0.823 / MAE = €457 (see `models/results.json`), CV reports R² = 0.838 ± 0.025 / MAE = €411 ± €41 (see `models/cv_results.json`). The CV numbers are the honest headline.
+### What changed between v1 and v2
+
+After the review, four concrete asks:
+
+1. **Report RMSE alongside MAE** — v2 does, in every CV table.
+2. **All combinations of {tabular, text, image}** — v2 runs the full 7-subset grid in `v2/train_cv_full_ablation.py`.
+3. **Better image pooling than mean** — v2 implements additive attention (`v2/attention_pool.py`). Honest result: tied with mean at our scale (1,425 listings); negative result preserved in the writeup.
+4. **Try CLIP / DINO / SigLIP instead of ResNet** — SigLIP-base swapped in (`v2/extract_siglip_embeddings.py`). Single biggest win.
+
+On top of that, the dataset grew 4.2× (1,425 → 6,047 listings) via stratified luxury-tier scraping, which let `train_cv_full_ablation.py` run on the full set (the earlier scripts inner-join on ResNet, which only covers the original 1,425 — those numbers are kept for v1 comparison). v1 source code in `src/` is untouched; everything new is in `v2/`.
 
 ## Setup
 
@@ -30,7 +60,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Python 3.10+. You will need your own listings dataset to re-run the full pipeline (schema below). Pretrained model weights are not shipped; the `models/` dir has config and history JSONs only.
+Python 3.10+. You will need your own listings dataset to re-run the full pipeline (schema below). Pretrained model weights are not shipped; the `models/` and `v2/models/` dirs have config and result JSONs only.
 
 ### Expected dataset schema
 
@@ -49,13 +79,11 @@ Place a CSV at `data/processed/listings_clean.csv` with at least:
 
 Images should be downloaded to `data/raw/images/<listing_id>/<idx>.jpg`.
 
-## Pipeline
+## v1 pipeline
 
-Run in order. Each step depends on the previous.
+The original v1 pipeline still runs end to end. Steps in order, each depends on the previous.
 
 ### 1. Build the shared split manifest
-
-Generates `data/processed/splits.json` tagging every `listing_id` as train / val / test (70/15/15, seed 42). Both the fine-tune and the gradient-boosting scripts read this manifest so the ResNet never sees a listing that lands in the downstream GB test set.
 
 ```bash
 python -m src.data.make_splits
@@ -63,15 +91,11 @@ python -m src.data.make_splits
 
 ### 2. Extract image embeddings (frozen ResNet-50)
 
-Passes every image through a pretrained ResNet-50 (ImageNet) and saves a 2048-dim vector per listing. ~3 min on Apple Silicon, longer on CPU.
-
 ```bash
 python -m src.vision.extract_embeddings
 ```
 
 ### 3. Fine-tune ResNet-50
-
-Trains `layer4` + a regression head to predict log-rent from individual photos, using the `splits.json` manifest. ~20 min on Apple Silicon.
 
 ```bash
 python -m src.vision.finetune
@@ -79,15 +103,11 @@ python -m src.vision.finetune
 
 ### 4. Extract fine-tuned embeddings
 
-Same as step 2 but using the fine-tuned model. ~3 min.
-
 ```bash
 python -m src.vision.extract_finetuned_embeddings
 ```
 
 ### 5. Extract text embeddings
-
-Runs listing descriptions through a multilingual sentence transformer (384-dim). Almost instant.
 
 ```bash
 python -m src.vision.extract_text_embeddings
@@ -95,15 +115,11 @@ python -m src.vision.extract_text_embeddings
 
 ### 6. Train all models
 
-Trains Ridge, Gradient Boosting (several variants), and Neural Net models and prints comparative results. ~5 min.
-
 ```bash
 python -m src.models.train
 ```
 
-### 6b. Cross-validate (optional, recommended)
-
-Refits every GB model under 5-fold CV so the headline isn't a single-seed draw. ~3 min. Saves `models/cv_results.json`.
+### 6b. Cross-validate
 
 ```bash
 python -m src.models.train_cv
@@ -112,19 +128,14 @@ python -m src.models.train_cv
 ### 7. Predictions (CLI)
 
 ```bash
-# predict from an existing listing in the dataset
 python -m src.models.inference --listing 101580197
-
-# predict from custom inputs
 python -m src.models.inference --sqft 80 --rooms 2 --bathrooms 1 --zone Centro
-
-# demo mode, runs 3 examples (cheap, mid, expensive)
-python -m src.models.inference
+python -m src.models.inference   # demo mode, runs 3 examples
 ```
 
 ### 8. Analysis figures (optional)
 
-Pre-computed figures live in `notebooks/figures/`. To regenerate:
+Pre-computed v1 figures live in `notebooks/figures/`. To regenerate:
 
 ```bash
 python notebooks/01_eda.py
@@ -133,42 +144,59 @@ python notebooks/03_evaluation.py
 python notebooks/04_expensive_images.py
 ```
 
+## v2 pipeline
+
+If you want the v2 numbers (SigLIP + full ablation + calibration on 6,047 listings):
+
+```bash
+python -m v2.extract_siglip_embeddings    # ~30 min on Apple Silicon MPS
+python v2/extract_text_embeddings_v2.py   # ~5 min, full unified set
+python v2/train_cv_full_ablation.py       # ~5 min, the headline grid
+python v2/calibration.py                  # ~30 sec, post-hoc Q4 fix
+python v2/make_figures.py                 # ~10 sec, regenerate plots
+```
+
+See `v2/README.md` for the full v2 changelog and detail.
+
 ## Project structure
 
 ```
-src/
-  data/            cleaning, zone mapping, split manifest
-  vision/          ResNet embeddings, fine-tuning, text embeddings
-  models/          dataset prep, model architectures, training, inference
-  api/             FastAPI backend for the dashboard + browser extension
-notebooks/         EDA, clustering, evaluation plots
-extension/         Chrome (Manifest V3) browser extension
-web/               Next.js frontend dashboard
-data/processed/    embedding indexes, splits.json, feature-aggregate CSVs
-models/            trained weights (gitignored) + results.json + cv_results.json
+src/                v1 pipeline (unchanged)
+  data/             cleaning, zone mapping, split manifest
+  vision/           ResNet embeddings, fine-tuning, text embeddings
+  models/           dataset prep, model architectures, training, inference
+  api/              FastAPI backend for the dashboard + browser extension
+v2/                 v2 rewrite addressing review feedback
+  *.py              SigLIP, attention pooling, full ablation grid, calibration
+  models/           v2 CV result JSONs
+  figures/          v2 PNG figures
+notebooks/          v1 EDA, clustering, evaluation plots
+extension/          Chrome (Manifest V3) browser extension
+web/                Next.js frontend dashboard
+data/processed/     embedding indexes, splits.json, feature-aggregate CSVs
+models/             v1 trained weights (gitignored) + results.json + cv_results.json
 ```
 
 ## How it works
 
-Listing photos pass through ResNet-50 (pretrained on ImageNet, then fine-tuned on our data) producing a 2048-dim embedding per image. Mean-pool across all photos in a listing. PCA to 50 dims, concatenate with tabular features (sqm, rooms, zone, etc) and feed into Gradient Boosting. Same pipeline with descriptions through a multilingual sentence transformer (384-dim, PCA to 30).
+The full multimodal pipeline (v2 headline): listing photos pass through SigLIP-base (Google's image-text contrastive model, 768-dim per image), mean-pooled across a listing's photos, PCA to 50 dims, concatenated with PCA'd text embeddings (multilingual MiniLM, 384-dim → 30) and tabular features (sqm, rooms, bathrooms, zone, etc), and fed into Gradient Boosting on log-rent.
 
-We tried neural nets for the regression and they overfit with ~1,000 training samples. Gradient Boosting handles the high-dim embeddings much better at this scale.
+v1 used the same pattern but with frozen and fine-tuned ResNet-50 (ImageNet) instead of SigLIP. The swap from ResNet to SigLIP was the single biggest accuracy win.
+
+We tried neural nets for the regression in v1 and they overfit with ~1,000 training samples. Gradient Boosting handles the high-dim embeddings much better at this scale. We also tried attention pooling over per-photo embeddings in v2 — same result as mean-pool on this dataset size. Both kept in the repo for ablation honesty.
 
 ## Known limitations
 
-- **Listing-level dedup is conservative, not exhaustive.** We catch exact feature-tuple matches (46 re-listings collapsed). Near-duplicates with slightly different text still slip through.
-- **"Combined effect" in the feature breakdown is a remainder, not a proper interaction.** The feature decomposition computes `full − tabular − text_delta − photos_delta` and labels it "combined effect." For a gradient-boosting ensemble this mixes true interaction with different-subsample noise across separately-fit ablation models.
-- **Per-photo score is a model activation, not a rent figure.** The fine-tuned ResNet's regression head was trained on per-image log-rent where all photos in a listing share one target. Per-image output lands in the rent distribution but doesn't represent the rent contribution of any single photo. The UI shows rank within listing, not absolute €.
-- **Neural network ablation does not converge** at this dataset size with our hyperparameters (reported R² = −1.4 / −5.0 in `results.json`). Kept for ablation honesty; not a serious baseline.
-- **Fine-tune gain vanishes under CV.** Single-split showed fine-tuned beating frozen ResNet by +0.010 R²; 5-fold CV shows +0.002. Fine-tuning taught us how fine-tuning works, but didn't actually move the headline. Frozen ImageNet ResNet-50 is enough at N=1,425.
+- **Q4 luxury MAE is still €541 baseline / €528 calibrated** even on 6,047 listings. Calibration fixed the systematic bias (model now predicts the right average for €4k+ listings) but not the variance — individual luxury predictions can still be off by ±€500. Need a separate luxury head or significantly more luxury training data to fix this.
+- **Listing-level dedup is conservative, not exhaustive.** Catches exact feature-tuple matches (46 re-listings collapsed in v1, 567 in v2's new scrape). Near-duplicates with slightly different text still slip through.
+- **Per-photo score is a model activation, not a rent figure.** The fine-tuned ResNet's regression head from v1 was trained on per-image log-rent where all photos in a listing share one target. Per-image output lands in the rent distribution but doesn't represent the rent contribution of any single photo. The UI shows rank within listing, not absolute €.
+- **`v2/train_cv_v2.py` and `v2/train_cv_siglip.py` are still capped at 1,425 listings** because they inner-join on ResNet embeddings (which we never re-extracted on the new listings). The ablation we trust for the 6,047 headline is `v2/train_cv_full_ablation.py`.
 
 ## Potential improvements
 
-- **Attention pooling instead of mean pooling.** Let the model learn which photos matter most for predicting price.
-- **CLIP instead of ResNet.** Trained on image-text pairs so it already has some understanding of concepts like "luxury" or "modern." Could give better embeddings out of the box and enable zero-shot room-type classification.
-- **Per-room-type embeddings.** Right now we just average all images together. A kitchen photo and a bathroom photo get mixed into one vector.
+- **Per-room-type embeddings.** Right now we just average all images together. A kitchen photo and a bathroom photo get mixed into one vector. Zero-shot room-type classification with CLIP/SigLIP could split these.
 - **Hyperparameter tuning.** We never tuned the gradient boosting (500 trees, max_depth=4, lr=0.05). Grid search or Bayesian optimization would probably squeeze out a couple of points.
-- **Prediction intervals.** MC Dropout or deep ensembles would give per-listing confidence instead of a constant ±MAE band.
+- **Prediction intervals.** MC Dropout, deep ensembles, or conformal prediction would give per-listing confidence instead of a constant ±MAE band — important for the luxury tier where variance is wide.
 - **More cities.** Barcelona, Valencia to test generalization; temporal re-scrape to get days-on-market signal.
 
 ---
@@ -226,7 +254,7 @@ The extension calls `http://127.0.0.1:8000/predict-live`, so the backend must be
 
 ## Extension API in two sentences
 
-`POST /predict-live` takes tabular + optional text/image description of a listing and returns a peer-expected rent with feature-by-feature decomposition. If you pass a `listing_id` that's in the precomputed dataset, you get an instant cache hit; otherwise the backend downloads the images, runs the ResNet + sentence-transformer + gradient-boosting pipeline live, and returns the same structure in a few seconds.
+`POST /predict-live` takes tabular + optional text/image description of a listing and returns a peer-expected rent with feature-by-feature decomposition. If you pass a `listing_id` that's in the precomputed dataset, you get an instant cache hit; otherwise the backend downloads the images, runs the SigLIP + sentence-transformer + gradient-boosting pipeline live, and returns the same structure in a few seconds.
 
 ## Caveats for the product layer
 

@@ -10,6 +10,7 @@ data/processed/*.parquet
 !data/processed/text_embeddings_index.csv
 !data/processed/image_quality.csv
 !data/processed/splits.json
+!data/processed/listings_clean_sample.csv
 *.npy
 models/*.pt
 models/*.joblib

@@ -60,7 +60,15 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Python 3.10+. You will need your own listings dataset to re-run the full pipeline (schema below). Pretrained model weights are not shipped; the `models/` and `v2/models/` dirs have config and result JSONs only.
+Python 3.10+. To verify everything installed correctly, run the bundled demo:
+
+```bash
+python v2/demo.py
+```
+
+This runs the full v2 pipeline against `data/processed/listings_clean_sample.csv` (a 50-row synthetic dataset that ships with the repo) and prints both the synthetic-data CV table and, for reference, the actual headline numbers from the real-data run that live in `v2/models/cv_results_full_ablation.json`. No GPU needed, no scraping, ~30 seconds.
+
+To re-run on real data, you will need your own listings dataset (schema below) -- ours isn't shipped due to licensing. Pretrained model weights are not shipped; the `models/` and `v2/models/` dirs have config and result JSONs only.
 
 ### Expected dataset schema
 
@@ -155,6 +163,7 @@ python v2/train_cv_full_ablation.py       # ~5 min, the headline grid
 python v2/calibration.py                  # ~30 sec, post-hoc Q4 fix
 python v2/make_figures.py                 # ~10 sec, regenerate plots
 python v2/cluster_images.py               # ~3 min, K-means + UMAP on SigLIP photo embeddings
+python v2/plot_training_curves.py         # ~1 min, v1 NN curves + v2 GB staged curves
 ```
 
 See `v2/README.md` for the full v2 changelog and detail. Highlights worth opening directly:

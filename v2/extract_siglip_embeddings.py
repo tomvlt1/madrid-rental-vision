@@ -135,7 +135,7 @@ def _load_existing_state():
 
 
 def _atomic_save_npy(arr, target: Path):
-    """Write to target.tmp then rename: but np.save auto-appends '.npy'
+    """Write to target.tmp then rename, but np.save auto-appends '.npy'
     so we have to use a temp path that ALREADY ends in .npy."""
     tmp = target.with_name(target.name + ".tmp.npy")  # literal '.tmp.npy' suffix
     np.save(tmp, arr)

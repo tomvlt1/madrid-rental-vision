@@ -738,7 +738,7 @@ def predict_live(req: PredictLiveRequest):
 
     # Build breakdown (runs every available ablation model for display).
     # We pass surface-level context (similarity %, photo count) and let the
-    # breakdown helper attach notes AFTER it sees the actual deltas: so the
+    # breakdown helper attach notes AFTER it sees the actual deltas, so the
     # copy always agrees with the direction of the model's contribution.
     text_sim_pct = None
     if has_text and txt_pca_vec is not None:

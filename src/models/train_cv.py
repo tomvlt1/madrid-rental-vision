@@ -5,7 +5,7 @@
 #
 # Data-leakage note: we fix scalers and PCA per-fold on the TRAIN split
 # only. The ResNet fine-tune itself runs once against splits.json and
-# those embeddings are reused across folds: so this CV measures the
+# those embeddings are reused across folds, so this CV measures the
 # GB/Ridge tail of the pipeline's stability, not the ResNet's. That's
 # the right scope for "is our R² a lucky seed?"
 

@@ -1,8 +1,10 @@
 # madrid-rental-vision
 
-I wanted to see whether a photo of a flat tells you how much it rents for, on top of the obvious stuff (size, zone, bedrooms). It does, and the answer got a lot stronger after a review surfaced two methodology bugs and pushed me to swap the image encoder. The v1 number was R² = 0.838 on 1,425 Madrid listings; the v2 rewrite hits R² = 0.884 on **6,047 listings**, MAE = €274 (a 33% drop from v1's €411).
+I wanted to see whether a photo of a flat tells you how much it rents for, on top of the obvious stuff (size, zone, bedrooms). It does, and the answer got a lot stronger after a review surfaced two methodology bugs and pushed me to swap the image encoder. The headline numbers, what changed between versions, and where each piece lives in the repo are summarised in the table below.
 
 Dataset isn't in this repo (coursework + licensing). Code, trained models, evaluation results, and the Chrome extension are. Bring your own listings CSV and everything re-runs.
+
+> **Reading order for graders:** this section explains the v1/v2 split. [Results](#results) gives the per-model numbers. [`v2/README.md`](v2/README.md) is the v2-specific changelog with the calibration breakdown.
 
 ## v1 vs v2 at a glance
 

@@ -4,7 +4,7 @@ I wanted to see whether a photo of a flat tells you how much it rents for, on to
 
 Dataset isn't in this repo (coursework + licensing). Code, trained models, evaluation results, and the Chrome extension are. Bring your own listings CSV and everything re-runs.
 
-> **Reading order for graders:** this section explains the v1/v2 split. [Results](#results) gives the per-model numbers. [`v2/README.md`](v2/README.md) is the v2-specific changelog with the calibration breakdown.
+> **Reading order for graders:** this section explains the v1/v2 split. [Results](#results) gives the per-model numbers. To run anything yourself, `python v2/demo.py` after the [Setup](#setup) step is all you need. [`v2/README.md`](v2/README.md) is the v2-specific changelog with the calibration breakdown.
 
 ## v1 vs v2 at a glance
 
@@ -91,9 +91,9 @@ Python 3.10+. To verify everything installed correctly, run the bundled demo:
 python v2/demo.py
 ```
 
-This runs the full v2 pipeline against `data/processed/listings_clean_sample.csv` (a 50-row synthetic dataset that ships with the repo) and prints both the synthetic-data CV table and, for reference, the actual headline numbers from the real-data run that live in `v2/models/cv_results_full_ablation.json`. No GPU needed, no scraping, ~30 seconds.
+This is **the only thing a grader needs to run**. It executes the full v2 pipeline against `data/processed/listings_clean_sample.csv` (a 50-row synthetic dataset that ships with the repo) and prints both the synthetic-data CV table and, for reference, the actual headline numbers from the real-data run that live in `v2/models/cv_results_full_ablation.json`. No GPU needed, no scraping, ~30 seconds.
 
-To re-run on real data, you will need your own listings dataset (schema below) -- ours isn't shipped due to licensing. Pretrained model weights are not shipped; the `models/` and `v2/models/` dirs have config and result JSONs only.
+To re-run on real data, you will need your own listings dataset (schema below): ours isn't shipped due to licensing. Pretrained model weights are not shipped; the `models/` and `v2/models/` dirs have config and result JSONs only.
 
 ### Expected dataset schema
 
@@ -112,74 +112,9 @@ Place a CSV at `data/processed/listings_clean.csv` with at least:
 
 Images should be downloaded to `data/raw/images/<listing_id>/<idx>.jpg`.
 
-## v1 pipeline
+## v2 pipeline (this is the one to run)
 
-The original v1 pipeline still runs end to end. Steps in order, each depends on the previous.
-
-### 1. Build the shared split manifest
-
-```bash
-python -m src.data.make_splits
-```
-
-### 2. Extract image embeddings (frozen ResNet-50)
-
-```bash
-python -m src.vision.extract_embeddings
-```
-
-### 3. Fine-tune ResNet-50
-
-```bash
-python -m src.vision.finetune
-```
-
-### 4. Extract fine-tuned embeddings
-
-```bash
-python -m src.vision.extract_finetuned_embeddings
-```
-
-### 5. Extract text embeddings
-
-```bash
-python -m src.vision.extract_text_embeddings
-```
-
-### 6. Train all models
-
-```bash
-python -m src.models.train
-```
-
-### 6b. Cross-validate
-
-```bash
-python -m src.models.train_cv
-```
-
-### 7. Predictions (CLI)
-
-```bash
-python -m src.models.inference --listing 101580197
-python -m src.models.inference --sqft 80 --rooms 2 --bathrooms 1 --zone Centro
-python -m src.models.inference   # demo mode, runs 3 examples
-```
-
-### 8. Analysis figures (optional)
-
-Pre-computed v1 figures live in `notebooks/figures/`. To regenerate:
-
-```bash
-python notebooks/01_eda.py
-python notebooks/02_image_clusters.py
-python notebooks/03_evaluation.py
-python notebooks/04_expensive_images.py
-```
-
-## v2 pipeline
-
-If you want the v2 numbers (SigLIP + full ablation + calibration on 6,047 listings):
+Reproduces the v2 numbers (SigLIP + full ablation + calibration on 6,047 listings) on real data. **For grading, `python v2/demo.py` is sufficient**; the steps below are only needed if you want to recompute the headline JSONs from scratch.
 
 ```bash
 python -m v2.extract_siglip_embeddings    # ~30 min on Apple Silicon MPS
@@ -190,6 +125,33 @@ python v2/make_figures.py                 # ~10 sec, regenerate plots
 python v2/cluster_images.py               # ~3 min, K-means + UMAP on SigLIP photo embeddings
 python v2/plot_training_curves.py         # ~1 min, v1 NN curves + v2 GB staged curves
 ```
+
+<details>
+<summary><strong>v1 pipeline (optional, only for reproducing the v1 ResNet numbers)</strong></summary>
+
+Kept in `src/` so the v1 results table at the top of this README stays reproducible. **A grader does not need to run any of this** — v1 has been superseded by v2 in every metric. Steps in order, each depends on the previous:
+
+```bash
+python -m src.data.make_splits                        # 1. shared split manifest
+python -m src.vision.extract_embeddings               # 2. frozen ResNet-50 embeddings
+python -m src.vision.finetune                         # 3. fine-tune ResNet-50
+python -m src.vision.extract_finetuned_embeddings     # 4. fine-tuned embeddings
+python -m src.vision.extract_text_embeddings          # 5. text embeddings
+python -m src.models.train                            # 6. train all models
+python -m src.models.train_cv                         # 6b. 5-fold CV
+python -m src.models.inference --listing 101580197    # 7. CLI predictions
+```
+
+v1 analysis figures (precomputed in `notebooks/figures/`):
+
+```bash
+python notebooks/01_eda.py
+python notebooks/02_image_clusters.py
+python notebooks/03_evaluation.py
+python notebooks/04_expensive_images.py
+```
+
+</details>
 
 See `v2/README.md` for the full v2 changelog and detail. Highlights worth opening directly:
 

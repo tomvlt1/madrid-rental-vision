@@ -76,6 +76,49 @@ The model regresses toward the mean on luxury listings: predicted rent is too lo
 
 Linear calibration cuts the luxury under-prediction in half for a trivial cost in global MAE. Saved to `v2/models/calibration_results.json`.
 
+## SigLIP cluster analysis: visual proof the embeddings carry meaning
+
+Run `python v2/cluster_images.py` to reproduce. We sample 5,000 individual
+photos from the 143,458 SigLIP per-photo embeddings, run K-Means with
+k=10, and project to 2D with UMAP. No supervision: K-Means just looks at
+the 768-dim SigLIP vectors.
+
+The clusters separate cleanly by visual concept:
+
+| Cluster | N | Mean rent | Concept |
+|---|---|---|---|
+| 0 | 535 | €2,114 | Hallways, closets, dressing rooms |
+| 1 | 476 | €2,307 | Empty rooms with hardwood floors (post-reform) |
+| 2 | 630 | €1,990 | Kitchens |
+| 3 | 650 | €2,267 | Bathrooms |
+| 4 | 482 | €2,252 | Building exteriors, plazas, street views |
+| 5 | 693 | €2,407 | Bedrooms |
+| 6 | 677 | €2,317 | Modern living rooms |
+| 7 | 413 | €2,064 | Older / eclectic living rooms |
+| **8** | **133** | **€3,351** | **Luxury (E&V branded photos, marble, pro lighting)** |
+| 9 | 311 | €2,033 | Floor plans, architectural diagrams |
+
+Two takeaways:
+
+1. **Unsupervised room-type discovery.** Kitchens, bathrooms, bedrooms,
+   living rooms each form distinct clusters. Even style is split:
+   "modern" vs "older" living rooms (C6 vs C7) end up apart. This
+   wasn't trained for; it falls out of SigLIP's image-text pretraining.
+
+2. **Cluster 8 is direct visual evidence SigLIP captures price.** Only
+   133 of 5,000 photos (2.7%), but mean rent €3,351 vs €2,200 average,
+   a 50% premium. The cluster picked up the *visual signature* of
+   luxury photography: minimalist white spaces, professional lighting,
+   watermarks from premium agencies (Engel & Völkers visible in many).
+   Plain ResNet on ImageNet wouldn't group these. SigLIP did because
+   its training corpus included captions like "luxury apartment" /
+   "professional photo" alongside such images.
+
+Saved figures:
+- `figures/siglip_umap_clusters.png` — UMAP 2D, colored by cluster
+- `figures/siglip_umap_by_price.png` — same UMAP, colored by log rent
+- `figures/siglip_cluster_<k>.png` — 12-photo grid per cluster
+
 ## Methodology bugs from v1 that are now fixed
 
 1. **Listing-level dedup ran only on URL** in v1, so the same property re-listed under a new ID could straddle train/test. v2's `clean_and_merge.py` dedups on `(price, sqft, rooms, bathrooms, location)` tuples too. ~46 re-listings collapsed in the original 1,425; ~567 collapsed in the new 4,708 net-new listings.

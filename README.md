@@ -154,9 +154,13 @@ python v2/extract_text_embeddings_v2.py   # ~5 min, full unified set
 python v2/train_cv_full_ablation.py       # ~5 min, the headline grid
 python v2/calibration.py                  # ~30 sec, post-hoc Q4 fix
 python v2/make_figures.py                 # ~10 sec, regenerate plots
+python v2/cluster_images.py               # ~3 min, K-means + UMAP on SigLIP photo embeddings
 ```
 
-See `v2/README.md` for the full v2 changelog and detail.
+See `v2/README.md` for the full v2 changelog and detail. Highlights worth opening directly:
+
+- `v2/figures/siglip_umap_by_price.png` shows SigLIP separates expensive from cheap listings visually with no supervision.
+- `v2/figures/siglip_cluster_08.png` is the luxury cluster (€3,351 mean rent vs €2,200 average) with Engel & Völkers-branded photos grouping themselves together. Direct evidence the encoder swap was worth it.
 
 ## Project structure
 

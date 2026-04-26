@@ -115,9 +115,9 @@ Two takeaways:
    "professional photo" alongside such images.
 
 Saved figures:
-- `figures/siglip_umap_clusters.png` — UMAP 2D, colored by cluster
-- `figures/siglip_umap_by_price.png` — same UMAP, colored by log rent
-- `figures/siglip_cluster_<k>.png` — 12-photo grid per cluster
+- `figures/siglip_umap_clusters.png`: UMAP 2D, colored by cluster
+- `figures/siglip_umap_by_price.png`: same UMAP, colored by log rent
+- `figures/siglip_cluster_<k>.png`: 12-photo grid per cluster
 
 ## Methodology bugs from v1 that are now fixed
 

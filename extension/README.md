@@ -4,13 +4,11 @@ Injects peer-expected rent badges and detail panels onto Madrid rental listing p
 
 ## Install (Chrome / Edge / Brave)
 
-1. Make sure the backend is running:
-   ```
-   uvicorn src.api.app:app --port 8000
-   ```
-2. Open `chrome://extensions/` and enable **Developer mode** (top right).
-3. Click **Load unpacked** and select this `extension/` folder.
-4. Navigate to a supported Madrid rental listing URL. Badges appear automatically.
+1. Open `chrome://extensions/` and enable **Developer mode** (top right).
+2. Click **Load unpacked** and select this `extension/` folder.
+3. Navigate to a supported Madrid rental listing URL. The frontend loads; badges populate once the backend is reachable at `http://127.0.0.1:8000`.
+
+> **Note on the backend.** The FastAPI server that powers `/predict-live` ships separately from this public repo (it depends on the v1 fine-tuned ResNet artifacts kept on the author's machine). Without it running, the extension will load but its API calls will fail. Demo screenshots and a video walkthrough are in the project report.
 
 ## What it does
 

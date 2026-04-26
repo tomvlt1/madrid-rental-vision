@@ -1,12 +1,12 @@
 # v2: 5-fold CV with the full ablation grid + euro-RMSE alongside MAE.
 #
-# Changes vs src/models/train_cv.py:
+# Differences vs the v1 CV script (kept locally, not shipped in this repo):
 #   (1) compute_metrics() now returns rmse_euros (in addition to rmse_log).
 #   (2) The ablation grid is the full 2^3 - 1 = 7 non-empty subsets of
 #       {tabular, text, image}, for both frozen-ResNet and fine-tuned-ResNet
 #       image embeddings where applicable.
-#   (3) Writes to v2/models/cv_results_v2.json so the original
-#       models/cv_results.json is untouched.
+#   (3) Writes to v2/models/cv_results_v2.json so the v1 result file
+#       (models/cv_results.json) is untouched.
 #
 # Still reads data/processed/ (shared, read-only). Same KFold + seed as v1.
 
@@ -29,8 +29,8 @@ from v2.paths import PROCESSED_DIR, V2_MODELS_DIR  # noqa: E402
 
 CV_RESULTS_FILE = V2_MODELS_DIR / "cv_results_v2.json"
 
-# Inlined so v2 is self-contained (identical to src/models/dataset.py in
-# both the public-release repo and the ai2 dev tree).
+# Inlined so v2 is self-contained (matches the v1 dataset feature list
+# verbatim, which is kept locally in src/models/dataset.py).
 NUMERIC_FEATURES = ["sqft_m2", "rooms", "bathrooms", "floor_num", "num_images"]
 BOOL_FEATURES = [
     "elevator",

@@ -3,7 +3,7 @@ Cluster the SigLIP per-photo embeddings to visually demonstrate the
 representation captures semantic structure: room types, price tiers,
 listing quality.
 
-Mirrors notebooks/02_image_clusters.py from v1 (which used ResNet on
+Mirrors the v1 image-clustering notebook (which used ResNet on
 5,000 sampled images), but reads from the per-photo SigLIP embeddings
 we already extracted in v2/data/siglip_per_photo.npy. No new model
 forward passes needed.

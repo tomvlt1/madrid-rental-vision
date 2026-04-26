@@ -17,7 +17,7 @@
 #   baseline_squared_error    sklearn default, MSE on log-rent (v2 headline)
 #   huber                     Huber loss, MSE near zero, linear in tail
 #   quantile_0.5              explicit median regression (LAD)
-#   asymmetric                quantile_0.5 below target, quantile_0.55 above —
+#   asymmetric                quantile_0.5 below target, quantile_0.55 above --
 #                             penalises UNDER-prediction (the direction we're
 #                             biased in). Closest available in sklearn is
 #                             loss='quantile', alpha>0.5 which tilts toward
@@ -232,7 +232,7 @@ def main():
 
     # Per-quartile table, focused on Q4
     print("\n" + "=" * 92)
-    print("PER-QUARTILE MAE (€)   — the column that matters is Q4_expensive")
+    print("PER-QUARTILE MAE (€)  : the column that matters is Q4_expensive")
     print("=" * 92)
     header = f"{'Loss':<26}"
     q_order = ["Q1_cheap", "Q2", "Q3", "Q4_expensive"]
@@ -247,7 +247,7 @@ def main():
         print(row)
 
     print("\n" + "=" * 92)
-    print("PER-QUARTILE BIAS (€) — negative = under-prediction; v2 baseline was -€542 in Q4")
+    print("PER-QUARTILE BIAS (€): negative = under-prediction; v2 baseline was -€542 in Q4")
     print("=" * 92)
     header = f"{'Loss':<26}"
     for q in q_order:

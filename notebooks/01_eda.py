@@ -1,4 +1,4 @@
-# EDA — Madrid rental listings
+# EDA: Madrid rental listings
 # Generates figures in notebooks/figures/
 
 import sys

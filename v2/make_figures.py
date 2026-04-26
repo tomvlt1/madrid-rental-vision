@@ -1,4 +1,4 @@
-# v2/make_figures.py — produce figures from the OOF predictions for the
+# v2/make_figures.py: produce figures from the OOF predictions for the
 # writeup. Three plots:
 #   1) Residual histogram with ±MAE band (shows the heavy tail concretely)
 #   2) Predicted-vs-actual scatter, colored by price quartile
@@ -46,7 +46,7 @@ def main():
     ax.axvspan(mae, rmse, color="tab:red", alpha=0.05, label=f"±RMSE (€{rmse:.0f})")
     ax.set_xlabel("prediction error, € (positive = over-prediction)")
     ax.set_ylabel("count")
-    ax.set_title("Residual distribution — headline model, 5-fold OOF, N=1,425")
+    ax.set_title("Residual distribution: headline model, 5-fold OOF, N=1,425")
     ax.legend(loc="upper right")
     ax.set_xlim(-4000, 4000)
     fig.tight_layout()
@@ -87,7 +87,7 @@ def main():
     ax.axhline(mae, color="tab:green", lw=1, ls="--", label=f"overall MAE €{mae:.0f}")
     ax.set_xlabel("actual rent (€)")
     ax.set_ylabel("|prediction error| (€)")
-    ax.set_title("Error grows with price — tail concentrates above ~€3k")
+    ax.set_title("Error grows with price: tail concentrates above ~€3k")
     ax.legend(loc="upper left")
     ax.set_ylim(0, df["abs_error_eur"].quantile(0.99))
     fig.tight_layout()

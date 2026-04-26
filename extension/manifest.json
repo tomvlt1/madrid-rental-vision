@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "CasaIntel — Peer rent for Idealista",
+  "name": "CasaIntel: Peer rent for Idealista",
   "version": "0.1.0",
   "description": "Shows peer-expected rent on Madrid Idealista listings. Backed by a ResNet+GB model trained on 1,470 rentals.",
   "host_permissions": [

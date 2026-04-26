@@ -48,7 +48,7 @@ PROCESSED_DIR = _first_existing(
 try:
     IMAGES_DIR = _first_existing(
         "MRV_IMAGES_DIR",
-        # use the directory itself as the "marker" — any subfolder of images/
+        # use the directory itself as the "marker": any subfolder of images/
         # would do; we just check the path exists.
         ".",
         [

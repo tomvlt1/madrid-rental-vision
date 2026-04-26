@@ -115,7 +115,7 @@ def build_dataset():
     df["split"] = df["listing_id"].map(assignment)
 
     # Only listings tagged "train" in the shared manifest feed the fine-tune.
-    # Val here is used for best-checkpoint selection — treated as held-out
+    # Val here is used for best-checkpoint selection: treated as held-out
     # model-selection data inside the fine-tune, NOT as the GB pipeline's
     # test set. Listings with split=="test" are untouched by fine-tuning.
     train_df = df[df["split"] == "train"].reset_index(drop=True)

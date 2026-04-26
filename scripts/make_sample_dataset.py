@@ -9,7 +9,7 @@ Output:
 
 The synthetic price is generated as a noisy linear function of size,
 zone effect, and rooms so that a model trained on it actually learns
-something — the demo metrics on this set won't match the real-data
+something: the demo metrics on this set won't match the real-data
 numbers, but the pipeline executes correctly.
 """
 

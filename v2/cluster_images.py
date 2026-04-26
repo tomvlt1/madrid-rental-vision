@@ -137,7 +137,7 @@ def main():
         avg_price = float(np.mean(cl_prices))
         median_price = float(np.median(cl_prices))
         fig.suptitle(
-            f"SigLIP cluster {k} — n={len(m)} photos | "
+            f"SigLIP cluster {k}: n={len(m)} photos | "
             f"mean rent €{avg_price:.0f} | median €{median_price:.0f}",
             fontsize=12, fontweight="bold",
         )

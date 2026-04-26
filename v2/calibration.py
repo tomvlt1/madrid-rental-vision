@@ -14,7 +14,7 @@
 # on the training set, so it sees the same distribution of errors we'd
 # get at test time. The risk: the calibrator is fit on ALL OOF data and
 # reused on the same OOF data for evaluation. That IS a form of leakage
-# — proper nested CV would fit the calibrator inside each fold. For a
+#: proper nested CV would fit the calibrator inside each fold. For a
 # quick bias-correction check the in-sample fit is a reasonable
 # first-order estimate of what we'd get. We cross-validate the calibrator
 # explicitly below to quantify how much this matters.

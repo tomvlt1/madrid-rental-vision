@@ -1,4 +1,4 @@
-/* CasaIntel injected styles — scoped under .casa-intel-* to avoid clashes. */
+/* CasaIntel injected styles: scoped under .casa-intel-* to avoid clashes. */
 
 .casa-intel-badge {
   display: inline-flex;
@@ -67,7 +67,7 @@
 }
 
 /* -------- soft badge (search-results cards) -------- */
-/* Intentionally neutral — tabular-only estimate is too uncertain to label
+/* Intentionally neutral: tabular-only estimate is too uncertain to label
    fair/over/under without the full model's photo + text signal. */
 
 .casa-intel-badge-soft {

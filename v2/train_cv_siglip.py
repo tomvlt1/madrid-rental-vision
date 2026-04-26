@@ -282,7 +282,7 @@ def main():
     kf = KFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
     per_fold = []
     for k, (train_idx, test_idx) in enumerate(kf.split(np.arange(n)), 1):
-        print(f"\n=== Fold {k}/{N_FOLDS} — train={len(train_idx)} test={len(test_idx)} ===")
+        print(f"\n=== Fold {k}/{N_FOLDS}: train={len(train_idx)} test={len(test_idx)} ===")
         fold_res = fold_metrics(data, train_idx, test_idx, k)
         for model, m in fold_res.items():
             print(
@@ -295,7 +295,7 @@ def main():
     agg = aggregate(per_fold)
 
     print("\n" + "=" * 100)
-    print(f"V2 SIGLIP CV — ResNet vs SigLIP vs SigLIP+attention ({N_FOLDS}-fold)")
+    print(f"V2 SIGLIP CV: ResNet vs SigLIP vs SigLIP+attention ({N_FOLDS}-fold)")
     print("=" * 100)
     print(
         f"{'Model':<32} {'R²':>16} {'MAE (€)':>14} "

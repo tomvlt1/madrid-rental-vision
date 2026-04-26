@@ -1,4 +1,4 @@
-# Smoke test for v2/attention_pool.py — runs on synthetic per-photo
+# Smoke test for v2/attention_pool.py: runs on synthetic per-photo
 # embeddings so we can validate the training loop, masking, and
 # variable-length batching without waiting for SigLIP extraction.
 #
@@ -6,7 +6,7 @@
 #   - Target is a linear function of the MEAN per-photo embedding.
 #     This makes mean-pooling optimal; attention pool should learn
 #     near-uniform weights and reach comparable MSE. We don't require
-#     attention to beat mean-pool (can't, by construction) — we just
+#     attention to beat mean-pool (can't, by construction): we just
 #     require it to not blow up and to produce valid attention weights.
 
 import sys

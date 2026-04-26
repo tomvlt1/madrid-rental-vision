@@ -53,7 +53,7 @@ def compute_metrics(preds_log: np.ndarray, targets_log: np.ndarray) -> dict:
     """Metrics in both log-space and euro-space.
 
     rmse_log:    RMSE of log-rent residuals (what the GB optimizes).
-    rmse_euros:  RMSE after expm1 back to euros — comparable units with MAE.
+    rmse_euros:  RMSE after expm1 back to euros: comparable units with MAE.
     mae_euros:   MAE in euros.
     mape:        Mean absolute percent error (%).
     r2:          R² computed in log space (same as what the GB optimizes).
@@ -251,7 +251,7 @@ def main():
     kf = KFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
     per_fold = []
     for k, (train_idx, test_idx) in enumerate(kf.split(np.arange(n)), 1):
-        print(f"\n=== Fold {k}/{N_FOLDS} — train={len(train_idx)} test={len(test_idx)} ===")
+        print(f"\n=== Fold {k}/{N_FOLDS}: train={len(train_idx)} test={len(test_idx)} ===")
         fold_res = fold_metrics(data, train_idx, test_idx)
         for model, m in fold_res.items():
             print(
@@ -264,7 +264,7 @@ def main():
     agg = aggregate(per_fold)
 
     print("\n" + "=" * 100)
-    print(f"V2 5-FOLD CV — full ablation grid (mean ± std across {N_FOLDS} folds)")
+    print(f"V2 5-FOLD CV: full ablation grid (mean ± std across {N_FOLDS} folds)")
     print("=" * 100)
     print(
         f"{'Model':<38} {'R²':>16} {'MAE (€)':>14} "

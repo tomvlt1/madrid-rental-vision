@@ -40,8 +40,8 @@ V2_FIG = V2_DIR / "figures" / "v2_gb_staged_curves.png"
 def plot_v1_curves():
     histories = {
         "ResNet-50 fine-tune (layer4 + head)": "models/finetune_history.json",
-        "NN — image-only baseline": "models/nn_image_only_history.json",
-        "NN — tabular + image": "models/nn_tabular_image_history.json",
+        "NN: image-only baseline": "models/nn_image_only_history.json",
+        "NN: tabular + image": "models/nn_tabular_image_history.json",
     }
 
     fig, axes = plt.subplots(1, 3, figsize=(16, 4.5))

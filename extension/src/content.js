@@ -1,5 +1,5 @@
 /*
- * CasaIntel content script — runs on Idealista Madrid pages.
+ * CasaIntel content script: runs on Idealista Madrid pages.
  *
  * Search results: parses each listing card, calls the backend in tabular
  * mode, and injects a small peer-expected-rent badge.
@@ -40,7 +40,7 @@
   }
 
   function fmtEur(n) {
-    if (n == null || !Number.isFinite(n)) return "—";
+    if (n == null || !Number.isFinite(n)) return "--";
     const rounded = Math.round(n);
     const abs = Math.abs(rounded);
     const formatted = "€" + abs.toLocaleString("en-US");
@@ -275,7 +275,7 @@
   function buildListBadge(result) {
     // Search cards run on tabular-only, which is ~5x noisier on outliers
     // than the full model. We intentionally drop the fair/over/under
-    // colored diagnosis here — it would mis-label premium outliers that
+    // colored diagnosis here: it would mis-label premium outliers that
     // tabular features can't see (penthouses, big-terrace apartments,
     // luxury finishes). The full verdict lives on the detail page.
     const wrapper = el("div", "casa-intel-badge-soft");
@@ -347,7 +347,7 @@
   // --------------------- detail page -----------------------------------
 
   /**
-   * Pull all Idealista image URLs off the page — scans both instantiated
+   * Pull all Idealista image URLs off the page: scans both instantiated
    * DOM <img> tags and the raw HTML (many gallery images are lazy-loaded
    * and only appear as strings in embedded JSON until the user advances
    * the carousel). Dedupes by the numeric master ID so size/format
@@ -591,7 +591,7 @@
         : "Neutral";
     badge.appendChild(el("span", "casa-intel-photo-tone", label));
     // Rank within the listing's photos. Intentionally NOT showing a €
-    // delta — per-photo score is a model activation in the rent dimension,
+    // delta: per-photo score is a model activation in the rent dimension,
     // not an actual rent contribution. Showing "+€418" would imply the
     // photo lifts the listing by that amount, which it doesn't.
     if (impact.rank_in_listing != null && total) {
@@ -713,7 +713,7 @@
     } catch (e) {
       showSkeleton(
         anchor,
-        "Backend unreachable — is uvicorn running on " + API_URL + "?",
+        "Backend unreachable: is uvicorn running on " + API_URL + "?",
       );
     }
   }

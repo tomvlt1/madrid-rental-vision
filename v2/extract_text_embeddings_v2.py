@@ -4,7 +4,7 @@ Extract text embeddings on the unified listings_clean_v2.csv.
 Reads:
   - v2/data/listings_clean_v2.csv  (4,236 listings)
 
-Writes (REAL files, not symlinks — replaces any existing symlink to ai2):
+Writes (REAL files, not symlinks: replaces any existing symlink to ai2):
   - v2/data/text_embeddings.npy
   - v2/data/text_embeddings_index.csv
 
@@ -31,11 +31,11 @@ OUT_IDX = V2_DATA_DIR / "text_embeddings_index.csv"
 
 def main():
     if not CLEAN_FILE.exists():
-        print(f"ERROR: {CLEAN_FILE} not found — run clean_and_merge first")
+        print(f"ERROR: {CLEAN_FILE} not found: run clean_and_merge first")
         sys.exit(1)
 
     # If outputs are symlinks (from morning_pipeline staging), remove them
-    # before writing — otherwise np.save would overwrite the symlink target
+    # before writing: otherwise np.save would overwrite the symlink target
     # (i.e. ai2's original embeddings file).
     for p in (OUT_NPY, OUT_IDX):
         if p.is_symlink():

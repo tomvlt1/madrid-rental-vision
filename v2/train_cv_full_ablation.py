@@ -201,7 +201,7 @@ def main():
     agg = aggregate(per_fold)
 
     print("\n" + "=" * 100)
-    print(f"FULL ABLATION GRID — {N_FOLDS}-fold CV on {n} listings (tabular + text + SigLIP)")
+    print(f"FULL ABLATION GRID: {N_FOLDS}-fold CV on {n} listings (tabular + text + SigLIP)")
     print("=" * 100)
     print(f"{'Model':<32} {'R²':>16} {'MAE (€)':>14} {'RMSE (€)':>14} {'MAPE (%)':>11}")
     print("-" * 100)

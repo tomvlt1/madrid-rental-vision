@@ -15,7 +15,7 @@ CLEAN_FILE = PROCESSED_DIR / "listings_clean.csv"
 SPLITS_FILE = PROCESSED_DIR / "splits.json"
 
 SEED = 42
-# 70/15/15 — matches the original downstream convention
+# 70/15/15: matches the original downstream convention
 VAL_FRAC_OF_REMAINING = 0.5  # 30% temp → 15% val / 15% test
 
 

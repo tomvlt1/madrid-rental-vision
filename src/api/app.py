@@ -89,7 +89,7 @@ async def lifespan(app: FastAPI):
     text_scaled_all = state["text_scaler"].transform(text_emb)
     state["text_pca_all"] = state["pca_text"].transform(text_scaled_all)
 
-    # fine-tuned image embeddings (per-listing mean-pooled) — needed for
+    # fine-tuned image embeddings (per-listing mean-pooled): needed for
     # feature-by-feature decomposition on cached listings.
     ft_emb = np.load(PROCESSED_DIR / "embeddings_finetuned.npy")
     ft_idx = pd.read_csv(PROCESSED_DIR / "embeddings_finetuned_index.csv")
@@ -232,7 +232,7 @@ class PredictLiveRequest(BaseModel):
     # Minimum required fields
     sqft: float
     zone: Optional[str] = None   # one of the 8 canonical zones
-    location: Optional[str] = None  # free text — inferred to zone if zone is missing
+    location: Optional[str] = None  # free text: inferred to zone if zone is missing
     # Optional identifiers / comparison
     listing_id: Optional[str] = None
     current_rent_eur: Optional[float] = None
@@ -259,7 +259,7 @@ class PredictLiveRequest(BaseModel):
 class FeatureBreakdown(BaseModel):
     """Per-feature-block decomposition of a prediction.
     All deltas are relative to the tabular-only baseline.
-    Contributions don't have to sum exactly to `full_eur` — tree ensembles
+    Contributions don't have to sum exactly to `full_eur`: tree ensembles
     have interaction terms, captured in `interaction_eur`.
     """
     tabular_eur: float  # base prediction from size, rooms, zone, amenities
@@ -347,11 +347,11 @@ def _build_diagnosis(row, photos) -> Diagnosis:
         gap_eur = float(pred_full - rent)
 
     if is_under:
-        verdict = "Below peer-expected — " + "; ".join(verdict_bits) + "."
+        verdict = "Below peer-expected: " + "; ".join(verdict_bits) + "."
     elif photos and weakest and strongest and (strongest.score_eur - weakest.score_eur) > 300:
-        verdict = "Photo scores vary widely within the listing — swapping the weakest may reduce days-on-market."
+        verdict = "Photo scores vary widely within the listing: swapping the weakest may reduce days-on-market."
     else:
-        verdict = "On peer average — no triage action recommended."
+        verdict = "On peer average: no triage action recommended."
 
     return Diagnosis(
         weakest_photo=weakest,
@@ -431,8 +431,8 @@ def _tabular_note_from_req(req: "PredictLiveRequest") -> str:
 
 def _make_text_note(delta_eur: Optional[float], sim_pct: Optional[float]) -> Optional[str]:
     """Build a description annotation grounded in the model's actual delta.
-    sim_pct (0–100) is surface cosine similarity to the premium-text centroid
-    — shown as raw context, not as an inference direction, because the GB
+    sim_pct (0–100) is surface cosine similarity to the premium-text centroid,
+    shown as raw context, not as an inference direction, because the GB
     model can disagree with it.
     """
     if delta_eur is None:
@@ -673,7 +673,7 @@ def predict_live(req: PredictLiveRequest):
 
     per_photo_impact: Optional[list[PhotoImpact]] = None
     if has_images:
-        # Parallel download — no photo cap. Concurrent I/O keeps wall-time
+        # Parallel download: no photo cap. Concurrent I/O keeps wall-time
         # bounded even for 30+ photo listings.
         from concurrent.futures import ThreadPoolExecutor
         urls = req.image_urls or []
@@ -738,7 +738,7 @@ def predict_live(req: PredictLiveRequest):
 
     # Build breakdown (runs every available ablation model for display).
     # We pass surface-level context (similarity %, photo count) and let the
-    # breakdown helper attach notes AFTER it sees the actual deltas — so the
+    # breakdown helper attach notes AFTER it sees the actual deltas: so the
     # copy always agrees with the direction of the model's contribution.
     text_sim_pct = None
     if has_text and txt_pca_vec is not None:
@@ -923,22 +923,22 @@ async def intake(
         else None
     )
 
-    # suggestions — framed around days-on-market, not direct rent lift
+    # suggestions: framed around days-on-market, not direct rent lift
     suggestions: list[str] = []
     if n_replace > 0:
         avg_replaced = float(np.mean([s for _, s in ranked[:n_replace]])) if ranked else 0.0
         avg_new = float(np.mean(extra_scores)) if extra_scores else 0.0
         if avg_new > avg_replaced + 100:
             suggestions.append(
-                f"New photos score above the weakest existing set — swapping them in is the stronger choice."
+                f"New photos score above the weakest existing set: swapping them in is the stronger choice."
             )
         elif avg_new < avg_replaced - 100:
             suggestions.append(
-                "New photos score below the originals being replaced — consider keeping current set."
+                "New photos score below the originals being replaced: consider keeping current set."
             )
         else:
             suggestions.append(
-                "New photos score near the replaced originals — substitution looks neutral."
+                "New photos score near the replaced originals: substitution looks neutral."
             )
         suggestions.append(
             f"Swapping the {n_replace} weakest original photo{'s' if n_replace != 1 else ''} "
@@ -948,11 +948,11 @@ async def intake(
         direction = "lifts" if delta_vs_prev > 0 else "lowers"
         suggestions.append(
             f"This substitution {direction} the model prediction by "
-            f"{formatEur_str(abs(delta_vs_prev))}/mo — outside the model's ±{int(MODEL_MAE_EUR)} MAE band."
+            f"{formatEur_str(abs(delta_vs_prev))}/mo: outside the model's ±{int(MODEL_MAE_EUR)} MAE band."
         )
     else:
         suggestions.append(
-            f"Predicted change is inside the model's ±{int(MODEL_MAE_EUR)} MAE band — "
+            f"Predicted change is inside the model's ±{int(MODEL_MAE_EUR)} MAE band: "
             "treat as noise, not a reliable signal."
         )
 
@@ -1168,7 +1168,7 @@ async def simulate(
         txt_scaled = state["text_scaler"].transform(txt_emb)
         txt_pca_vec = state["pca_text"].transform(txt_scaled)
     else:
-        # fallback: use premium centroid as neutral prior-ish — predict using empty text
+        # fallback: use premium centroid as neutral prior-ish: predict using empty text
         txt_scaled = state["text_scaler"].transform(np.zeros((1, 384), dtype=np.float32))
         txt_pca_vec = state["pca_text"].transform(txt_scaled)
 
@@ -1210,9 +1210,9 @@ async def simulate(
             "Mention renovations, views, natural light, or finishes."
         )
     if not description or len(description.strip()) < 50:
-        suggestions.append("Add a longer description — most high-rent listings have 200+ word descriptions.")
+        suggestions.append("Add a longer description: most high-rent listings have 200+ word descriptions.")
     if not suggestions:
-        suggestions.append("Photos and description look solid — this listing is well-presented.")
+        suggestions.append("Photos and description look solid: this listing is well-presented.")
 
     return SimulateResponse(
         predicted_rent_eur=pred_eur,

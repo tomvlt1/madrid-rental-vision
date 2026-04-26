@@ -42,7 +42,7 @@ def load_dataset(random_state=42):
     # after make_splits.py without regenerating). Should be 0 in normal flow.
     n_unmapped = df["split"].isna().sum()
     if n_unmapped > 0:
-        print(f"Warning: {n_unmapped} listings missing from splits.json — dropping")
+        print(f"Warning: {n_unmapped} listings missing from splits.json: dropping")
         df = df[df["split"].notna()].reset_index(drop=True)
 
     df["log_price"] = np.log1p(df["price"])

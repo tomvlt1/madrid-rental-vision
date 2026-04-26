@@ -66,7 +66,7 @@ def clean_data():
     df = df.drop_duplicates(subset="url", keep="last")
     print(f"After dedup by URL: {len(df)} (removed {n_raw - len(df)})")
 
-    # Dedup by feature tuple — same property re-listed under new IDs leaks
+    # Dedup by feature tuple: same property re-listed under new IDs leaks
     # across train/val/test splits otherwise. Groups must match on
     # (price, sqft, rooms, bathrooms, location, num_images) to collapse.
     before = len(df)

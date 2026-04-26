@@ -139,7 +139,7 @@ def main():
     results = {}
 
     # ================================================================
-    # MODEL 1: Ridge Regression — tabular only
+    # MODEL 1: Ridge Regression: tabular only
     # ================================================================
     print("=" * 60)
     print("MODEL 1: Ridge Regression (Tabular Only)")
@@ -154,7 +154,7 @@ def main():
     joblib.dump(ridge, MODELS_DIR / "ridge_tabular.joblib")
 
     # ================================================================
-    # MODEL 2: Gradient Boosting — tabular only
+    # MODEL 2: Gradient Boosting: tabular only
     # ================================================================
     print("\n" + "=" * 60)
     print("MODEL 2: Gradient Boosting (Tabular Only)")
@@ -179,7 +179,7 @@ def main():
         print(f"    {name:20s} {score:.3f} {bar}")
 
     # ================================================================
-    # MODEL 3: Gradient Boosting — tabular + PCA image features
+    # MODEL 3: Gradient Boosting: tabular + PCA image features
     # ================================================================
     print("\n" + "=" * 60)
     print("MODEL 3: Gradient Boosting (Tabular + PCA Image)")
@@ -209,7 +209,7 @@ def main():
     joblib.dump(pca, MODELS_DIR / "pca.joblib")
 
     # ================================================================
-    # MODEL 4: Gradient Boosting — tabular + PCA fine-tuned image
+    # MODEL 4: Gradient Boosting: tabular + PCA fine-tuned image
     # ================================================================
     print("\n" + "=" * 60)
     print("MODEL 4: Gradient Boosting (Tabular + Fine-tuned Image)")
@@ -267,7 +267,7 @@ def main():
     joblib.dump(pca_ft, MODELS_DIR / "pca_finetuned.joblib")
 
     # ================================================================
-    # MODEL 5: Gradient Boosting — tabular + PCA text embeddings
+    # MODEL 5: Gradient Boosting: tabular + PCA text embeddings
     # ================================================================
     print("\n" + "=" * 60)
     print("MODEL 5: Gradient Boosting (Tabular + Text)")
@@ -326,7 +326,7 @@ def main():
     joblib.dump(pca_text, MODELS_DIR / "pca_text.joblib")
 
     # ================================================================
-    # MODEL 6: Gradient Boosting — tabular + text + fine-tuned image
+    # MODEL 6: Gradient Boosting: tabular + text + fine-tuned image
     # ================================================================
     print("\n" + "=" * 60)
     print("MODEL 6: Gradient Boosting (Tabular + Text + Fine-tuned Image)")
@@ -381,7 +381,7 @@ def main():
     joblib.dump(gb_all, MODELS_DIR / "gb_tabular_text_finetuned_image.joblib")
 
     # ================================================================
-    # MODEL 7: Neural Network — tabular + image (full embeddings)
+    # MODEL 7: Neural Network: tabular + image (full embeddings)
     # ================================================================
     print("\n" + "=" * 60)
     print("MODEL 7: Neural Network (Tabular + Image)")
@@ -409,10 +409,10 @@ def main():
           f"MAPE={results['nn_tabular_image']['mape']:.1f}%")
 
     # ================================================================
-    # MODEL 8: Neural Network — image only (ablation)
+    # MODEL 8: Neural Network: image only (ablation)
     # ================================================================
     print("\n" + "=" * 60)
-    print("MODEL 8: Neural Network (Image Only — Ablation)")
+    print("MODEL 8: Neural Network (Image Only: Ablation)")
     print("=" * 60)
 
     img_train = DataLoader(TensorDataset(to_t(data["X_img_train"]), to_t(data["y_train"])),

@@ -23,7 +23,7 @@ v2/COMMERCIAL_MEMO_*.md
 v2/scraping/
 v2/.browser_profile*
 
-# v2 data — same licensing stance as v1, plus runtime symlinks
+# v2 data: same licensing stance as v1, plus runtime symlinks
 v2/data/listings_clean_v2.csv
 v2/data/listings_clean.csv
 v2/data/listings_new*.csv
@@ -42,7 +42,7 @@ v2/data/*.pre_*
 # OOF prediction CSVs (large; live under v2/models/)
 v2/models/oof_predictions*.csv
 
-# v2 runtime symlinks back to ai2's processed/ — original files
+# v2 runtime symlinks back to ai2's processed/: original files
 # already live in data/processed/ via the v1 .gitignore allowlist
 v2/data/embeddings.npy
 v2/data/embeddings_index.csv

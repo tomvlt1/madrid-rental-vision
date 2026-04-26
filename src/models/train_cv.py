@@ -5,7 +5,7 @@
 #
 # Data-leakage note: we fix scalers and PCA per-fold on the TRAIN split
 # only. The ResNet fine-tune itself runs once against splits.json and
-# those embeddings are reused across folds — so this CV measures the
+# those embeddings are reused across folds: so this CV measures the
 # GB/Ridge tail of the pipeline's stability, not the ResNet's. That's
 # the right scope for "is our R² a lucky seed?"
 
@@ -121,12 +121,12 @@ def fold_metrics(data: dict, train_idx: np.ndarray, test_idx: np.ndarray) -> dic
     y_train = data["y"][train_idx]
     y_test = data["y"][test_idx]
 
-    # Tabular — scale per fold
+    # Tabular: scale per fold
     tab_scaler = StandardScaler()
     X_tab_tr = tab_scaler.fit_transform(data["tab"][train_idx])
     X_tab_te = tab_scaler.transform(data["tab"][test_idx])
 
-    # Frozen image — scale + PCA per fold
+    # Frozen image: scale + PCA per fold
     img_scaler = StandardScaler()
     X_img_tr = img_scaler.fit_transform(data["X_img"][train_idx])
     X_img_te = img_scaler.transform(data["X_img"][test_idx])
@@ -134,7 +134,7 @@ def fold_metrics(data: dict, train_idx: np.ndarray, test_idx: np.ndarray) -> dic
     X_img_tr = pca_img.fit_transform(X_img_tr)
     X_img_te = pca_img.transform(X_img_te)
 
-    # Fine-tuned image — separate scaler + PCA
+    # Fine-tuned image: separate scaler + PCA
     ft_scaler = StandardScaler()
     X_ft_tr = ft_scaler.fit_transform(data["X_ft"][train_idx])
     X_ft_te = ft_scaler.transform(data["X_ft"][test_idx])
@@ -142,7 +142,7 @@ def fold_metrics(data: dict, train_idx: np.ndarray, test_idx: np.ndarray) -> dic
     X_ft_tr = pca_ft.fit_transform(X_ft_tr)
     X_ft_te = pca_ft.transform(X_ft_te)
 
-    # Text — scale + PCA
+    # Text: scale + PCA
     txt_scaler = StandardScaler()
     X_txt_tr = txt_scaler.fit_transform(data["X_txt"][train_idx])
     X_txt_te = txt_scaler.transform(data["X_txt"][test_idx])
@@ -211,7 +211,7 @@ def main():
     kf = KFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
     per_fold = []
     for k, (train_idx, test_idx) in enumerate(kf.split(np.arange(n)), 1):
-        print(f"\n=== Fold {k}/{N_FOLDS} — train={len(train_idx)} test={len(test_idx)} ===")
+        print(f"\n=== Fold {k}/{N_FOLDS}: train={len(train_idx)} test={len(test_idx)} ===")
         fold_res = fold_metrics(data, train_idx, test_idx)
         for model, m in fold_res.items():
             print(

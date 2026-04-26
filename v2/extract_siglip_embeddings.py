@@ -3,15 +3,15 @@
 # Produces two artifacts (both written under v2/data/, not the shared
 # data/processed/ tree, so the original ResNet embeddings are untouched):
 #
-#   1) siglip_embeddings.npy          — (n_listings, 768), mean-pooled across
+#   1) siglip_embeddings.npy         : (n_listings, 768), mean-pooled across
 #                                        a listing's photos. Drop-in replacement
 #                                        for embeddings.npy in the CV script.
-#   2) siglip_embeddings_index.csv    — aligned to (1), columns: listing_id.
+#   2) siglip_embeddings_index.csv   : aligned to (1), columns: listing_id.
 #
-#   3) siglip_per_photo.npy           — (n_total_photos, 768), one row per
+#   3) siglip_per_photo.npy          : (n_total_photos, 768), one row per
 #                                        individual photo. Needed by the
 #                                        attention-pooling module (attention_pool.py).
-#   4) siglip_per_photo_index.csv     — aligned to (3), columns:
+#   4) siglip_per_photo_index.csv    : aligned to (3), columns:
 #                                        listing_id, photo_idx, source_path.
 #
 # Model: google/siglip-base-patch16-224 (vision output dim = 768).
@@ -83,7 +83,7 @@ def embed_batch(processor, model, pil_images, device) -> np.ndarray:
         # pooler_output, which is what we want anyway (pooled image rep).
         features = model.get_image_features(**inputs)
         if not isinstance(features, torch.Tensor):
-            # structured output — pull pooler_output
+            # structured output: pull pooler_output
             features = getattr(features, "pooler_output", None)
             if features is None:
                 features = model.vision_model(**inputs).pooler_output
@@ -135,7 +135,7 @@ def _load_existing_state():
 
 
 def _atomic_save_npy(arr, target: Path):
-    """Write to target.tmp then rename — but np.save auto-appends '.npy'
+    """Write to target.tmp then rename: but np.save auto-appends '.npy'
     so we have to use a temp path that ALREADY ends in .npy."""
     tmp = target.with_name(target.name + ".tmp.npy")  # literal '.tmp.npy' suffix
     np.save(tmp, arr)

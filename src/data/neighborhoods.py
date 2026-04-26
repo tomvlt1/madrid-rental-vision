@@ -1,7 +1,7 @@
 # Map Idealista neighborhoods to broader zones (~8 groups by geography/price)
 # Keys are lowercase substrings matched against location field
 ZONE_MAP = {
-    # CENTRO — historic core
+    # CENTRO: historic core
     "centro, madrid": "Centro",
     "sol": "Centro",
     "palacio": "Centro",
@@ -16,7 +16,7 @@ ZONE_MAP = {
     "chueca": "Centro",
     "justicia": "Centro",
 
-    # SALAMANCA / RETIRO — upscale east
+    # SALAMANCA / RETIRO: upscale east
     "salamanca": "Salamanca-Retiro",
     "recoletos": "Salamanca-Retiro",
     "goya": "Salamanca-Retiro",
@@ -32,7 +32,7 @@ ZONE_MAP = {
     "estrella": "Salamanca-Retiro",
     "jerónimos": "Salamanca-Retiro",
 
-    # CHAMBERÍ — north-central upscale
+    # CHAMBERÍ: north-central upscale
     "chamberí": "Chamberí",
     "chamberi": "Chamberí",
     "trafalgar": "Chamberí",
@@ -54,7 +54,7 @@ ZONE_MAP = {
     "palos de la frontera": "Arganzuela",
     "legazpi": "Arganzuela",
 
-    # CHAMARTÍN / TETUAN — north business
+    # CHAMARTÍN / TETUAN: north business
     "chamartín": "Norte",
     "chamartin": "Norte",
     "bernabéu": "Norte",
@@ -80,7 +80,7 @@ ZONE_MAP = {
     "berruguete": "Norte",
     "almenara": "Norte",
 
-    # MONCLOA / ARGÜELLES — west
+    # MONCLOA / ARGÜELLES: west
     "argüelles": "Oeste",
     "arguelles": "Oeste",
     "moncloa": "Oeste",
@@ -92,7 +92,7 @@ ZONE_MAP = {
     "aravaca": "Oeste",
     "ciudad universitaria": "Oeste",
 
-    # OUTER NORTH — newer developments
+    # OUTER NORTH: newer developments
     "sanchinarro": "Periferia Norte",
     "las tablas": "Periferia Norte",
     "montecarmelo": "Periferia Norte",
@@ -123,7 +123,7 @@ ZONE_MAP = {
     "salvador": "Periferia Norte",
     "ambroz": "Periferia Norte",
 
-    # SOUTH / SOUTHEAST — more affordable
+    # SOUTH / SOUTHEAST: more affordable
     "vallecas": "Sur-Sureste",
     "ensanche de vallecas": "Sur-Sureste",
     "puente de vallecas": "Sur-Sureste",

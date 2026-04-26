@@ -1,4 +1,4 @@
-# v2 residual analysis — answers the question the RMSE/MAE gap raises:
+# v2 residual analysis: answers the question the RMSE/MAE gap raises:
 #
 #   The headline model has MAE=€411 but RMSE=€810. That's a 2x gap and
 #   implies a heavy-tailed error distribution: a handful of listings

@@ -139,7 +139,7 @@ def main():
     plt.close()
     print("Most budget images saved")
 
-    # "hidden gems" — cheap listings with expensive-looking photos
+    # "hidden gems": cheap listings with expensive-looking photos
     actual_prices = np.array([s[1] for s in valid_sample])
     overperform = predicted_prices - actual_prices  # positive = looks more expensive than it is
 
@@ -167,7 +167,7 @@ def main():
     plt.close()
     print("Hidden gems saved")
 
-    # "overpriced" — expensive rent but cheap-looking photos
+    # "overpriced": expensive rent but cheap-looking photos
     top_under = np.argsort(overperform)[:12]
     fig, axes = plt.subplots(2, 6, figsize=(24, 8))
     axes = axes.flatten()

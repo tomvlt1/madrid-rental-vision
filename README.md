@@ -4,6 +4,27 @@ I wanted to see whether a photo of a flat tells you how much it rents for, on to
 
 Dataset isn't in this repo (coursework + licensing). Code, trained models, evaluation results, and the Chrome extension are. Bring your own listings CSV and everything re-runs.
 
+## v1 vs v2 at a glance
+
+This repo contains **two complete versions** of the project. Both are kept so the work history is auditable.
+
+|  | **v1** (original submission) | **v2** (rewrite after review feedback) |
+|---|---|---|
+| **Code lives in** | `src/` (untouched) | `v2/` (new files only) |
+| **Image encoder** | ResNet-50 (frozen + fine-tuned) | SigLIP-base-patch16-224 |
+| **Listings (N)** | 1,425 | **6,047** (4.2x bigger via stratified luxury scrape) |
+| **Best R² (5-fold CV)** | 0.838 ± 0.025 | **0.884 ± 0.007** |
+| **Best MAE** | €411 ± €41 | **€274 ± €8** (-33%) |
+| **Reports RMSE alongside MAE?** | No | Yes (every CV table) |
+| **Ablation grid** | 4 configs (additive) | All 7 non-empty subsets of {tabular, text, image} |
+| **Pooling over per-photo embeddings** | Mean only | Mean + additive attention (tied at this scale, kept for honesty) |
+| **Post-hoc calibration** | None | Linear calibration cuts Q4 luxury bias by 41% |
+| **Result file** | `models/cv_results.json` | `v2/models/cv_results_full_ablation.json` |
+
+**Why both versions live in the repo:** the review surfaced two methodology bugs and four concrete asks. v1 is preserved exactly as submitted (so the bug fixes and improvements can be attributed honestly). v2 is the rewrite that addresses every ask. Pick whichever pipeline you want to run; they share the same dataset schema and zone mapping.
+
+The full v2 changelog and per-quarter calibration breakdown lives in [`v2/README.md`](v2/README.md).
+
 ## Results
 
 ### v2: full ablation grid, 5-fold CV, **N = 6,047 listings**
@@ -41,14 +62,16 @@ Saved to `models/cv_results.json` and unchanged.
 
 ### What changed between v1 and v2
 
-After the review, four concrete asks:
+The four concrete asks from the review and where each one was addressed:
 
-1. **Report RMSE alongside MAE.** v2 does, in every CV table.
-2. **All combinations of {tabular, text, image}.** v2 runs the full 7-subset grid in `v2/train_cv_full_ablation.py`.
-3. **Better image pooling than mean.** v2 implements additive attention (`v2/attention_pool.py`). Honest result: tied with mean at our scale (1,425 listings); negative result preserved in the writeup.
-4. **Try CLIP / DINO / SigLIP instead of ResNet.** SigLIP-base swapped in (`v2/extract_siglip_embeddings.py`). Single biggest win.
+| # | Review ask | Addressed in |
+|---|---|---|
+| 1 | Report RMSE alongside MAE | every v2 CV table (see `compute_metrics` in `v2/train_cv_full_ablation.py`) |
+| 2 | Run all combinations of {tabular, text, image} | `v2/train_cv_full_ablation.py` runs the full 7-subset grid |
+| 3 | Better image pooling than mean | `v2/attention_pool.py` (additive attention; honest result: tied with mean at this scale, kept anyway) |
+| 4 | Try CLIP / DINO / SigLIP instead of ResNet | `v2/extract_siglip_embeddings.py` (SigLIP-base, single biggest accuracy win) |
 
-On top of that, the dataset grew 4.2× (1,425 → 6,047 listings) via stratified luxury-tier scraping, which let `train_cv_full_ablation.py` run on the full set. The earlier scripts inner-join on ResNet (which only covers the original 1,425), so those numbers are kept for v1 comparison. v1 source code in `src/` is untouched; everything new is in `v2/`.
+On top of those four, the dataset grew 4.2x (1,425 to 6,047 listings) via stratified luxury-tier scraping, which let `train_cv_full_ablation.py` run on the full set. The earlier scripts (`v2/train_cv_v2.py`, `v2/train_cv_siglip.py`) inner-join on ResNet (which only covers the original 1,425), so those numbers are kept for v1 comparison. **v1 source code in `src/` is untouched**; everything new is in `v2/`.
 
 ## Setup
 

@@ -136,7 +136,7 @@ def main():
         sys.exit(1)
 
     print("=" * 78)
-    print("v2 PIPELINE DEMO — running on bundled 50-row sample dataset")
+    print("v2 PIPELINE DEMO: running on bundled 50-row sample dataset")
     print("=" * 78)
     df = pd.read_csv(SAMPLE_CSV)
     print(f"loaded {len(df)} sample listings from {SAMPLE_CSV.name}")
@@ -168,7 +168,7 @@ def main():
 
     print()
     print("=" * 78)
-    print("FOR REFERENCE — actual numbers from the real-data run (6,047 listings)")
+    print("FOR REFERENCE: actual numbers from the real-data run (6,047 listings)")
     print("=" * 78)
     print("Source: v2/models/cv_results_full_ablation.json (committed, no recompute needed)")
     if REAL_RESULTS.exists():

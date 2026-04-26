@@ -8,11 +8,11 @@ Dataset isn't in this repo (coursework + licensing). Code, trained models, evalu
 
 ## v1 vs v2 at a glance
 
-This repo contains **two complete versions** of the project. Both are kept so the work history is auditable.
+The project went through two full iterations. **This repo ships v2 only**; v1 is summarised here for context, with its result JSONs and figures kept so the numbers are still citeable.
 
 |  | **v1** (original submission) | **v2** (rewrite after review feedback) |
 |---|---|---|
-| **Code lives in** | `src/` (untouched) | `v2/` (new files only) |
+| **In this repo?** | Result JSONs + figures only (`models/*.json`, `notebooks/figures/`). Source code lives on the author's machine for the extension demo backend. | Yes, full source under `v2/` |
 | **Image encoder** | ResNet-50 (frozen + fine-tuned) | SigLIP-base-patch16-224 |
 | **Listings (N)** | 1,425 | **6,047** (4.2x bigger via stratified luxury scrape) |
 | **Best R² (5-fold CV)** | 0.838 ± 0.025 | **0.884 ± 0.007** |
@@ -23,7 +23,7 @@ This repo contains **two complete versions** of the project. Both are kept so th
 | **Post-hoc calibration** | None | Linear calibration cuts Q4 luxury bias by 41% |
 | **Result file** | `models/cv_results.json` | `v2/models/cv_results_full_ablation.json` |
 
-**Why both versions live in the repo:** the review surfaced two methodology bugs and four concrete asks. v1 is preserved exactly as submitted (so the bug fixes and improvements can be attributed honestly). v2 is the rewrite that addresses every ask. Pick whichever pipeline you want to run; they share the same dataset schema and zone mapping.
+**Why this layout:** the review surfaced two methodology bugs and four concrete asks. v1 is the version that was submitted with those bugs flagged. v2 is the rewrite that addresses every ask and supersedes v1 on every metric. Shipping only v2 keeps the public repo focused; the v1 result JSONs stay tracked so the v1 row above is reproducible at the number level even though the v1 training code isn't included here.
 
 The full v2 changelog and per-quarter calibration breakdown lives in [`v2/README.md`](v2/README.md).
 
@@ -73,7 +73,7 @@ The four concrete asks from the review and where each one was addressed:
 | 3 | Better image pooling than mean | `v2/attention_pool.py` (additive attention; honest result: tied with mean at this scale, kept anyway) |
 | 4 | Try CLIP / DINO / SigLIP instead of ResNet | `v2/extract_siglip_embeddings.py` (SigLIP-base, single biggest accuracy win) |
 
-On top of those four, the dataset grew 4.2x (1,425 to 6,047 listings) via stratified luxury-tier scraping, which let `train_cv_full_ablation.py` run on the full set. The earlier scripts (`v2/train_cv_v2.py`, `v2/train_cv_siglip.py`) inner-join on ResNet (which only covers the original 1,425), so those numbers are kept for v1 comparison. **v1 source code in `src/` is untouched**; everything new is in `v2/`.
+On top of those four, the dataset grew 4.2x (1,425 to 6,047 listings) via stratified luxury-tier scraping, which let `train_cv_full_ablation.py` run on the full set. The earlier scripts (`v2/train_cv_v2.py`, `v2/train_cv_siglip.py`) inner-join on ResNet and so are still capped at the original 1,425; they're kept in `v2/` for ablation honesty.
 
 ## Setup
 
@@ -105,7 +105,7 @@ Place a CSV at `data/processed/listings_clean.csv` with at least:
 | `price` | float | monthly rent in EUR |
 | `sqft_m2` | float | floor area |
 | `rooms`, `bathrooms` | int | |
-| `zone` | str | one of the Madrid zones in `src/data/neighborhoods.py` |
+| `zone` | str | one of the 8 canonical Madrid zones (Centro, Salamanca-Retiro, Chamberí, Arganzuela, Norte, Tetuán-Latina, Carabanchel-Usera, Otros) |
 | `description` | str | listing copy |
 | `image_urls` | JSON list | per-listing image URLs |
 | `num_images`, `floor_num`, `elevator`, `ac`, `terrace`, `furnished`, `heating`, `exterior`, `parking`, `storage` | mixed | optional extras used by the GB model |
@@ -126,33 +126,6 @@ python v2/cluster_images.py               # ~3 min, K-means + UMAP on SigLIP pho
 python v2/plot_training_curves.py         # ~1 min, v1 NN curves + v2 GB staged curves
 ```
 
-<details>
-<summary><strong>v1 pipeline (optional, only for reproducing the v1 ResNet numbers)</strong></summary>
-
-Kept in `src/` so the v1 results table at the top of this README stays reproducible. **A grader does not need to run any of this** — v1 has been superseded by v2 in every metric. Steps in order, each depends on the previous:
-
-```bash
-python -m src.data.make_splits                        # 1. shared split manifest
-python -m src.vision.extract_embeddings               # 2. frozen ResNet-50 embeddings
-python -m src.vision.finetune                         # 3. fine-tune ResNet-50
-python -m src.vision.extract_finetuned_embeddings     # 4. fine-tuned embeddings
-python -m src.vision.extract_text_embeddings          # 5. text embeddings
-python -m src.models.train                            # 6. train all models
-python -m src.models.train_cv                         # 6b. 5-fold CV
-python -m src.models.inference --listing 101580197    # 7. CLI predictions
-```
-
-v1 analysis figures (precomputed in `notebooks/figures/`):
-
-```bash
-python notebooks/01_eda.py
-python notebooks/02_image_clusters.py
-python notebooks/03_evaluation.py
-python notebooks/04_expensive_images.py
-```
-
-</details>
-
 See `v2/README.md` for the full v2 changelog and detail. Highlights worth opening directly:
 
 - `v2/figures/siglip_umap_by_price.png` shows SigLIP separates expensive from cheap listings visually with no supervision.
@@ -161,20 +134,23 @@ See `v2/README.md` for the full v2 changelog and detail. Highlights worth openin
 ## Project structure
 
 ```
-src/                v1 pipeline (unchanged)
-  data/             cleaning, zone mapping, split manifest
-  vision/           ResNet embeddings, fine-tuning, text embeddings
-  models/           dataset prep, model architectures, training, inference
-  api/              FastAPI backend serving predictions to the browser extension
-v2/                 v2 rewrite addressing review feedback
-  *.py              SigLIP, attention pooling, full ablation grid, calibration
-  models/           v2 CV result JSONs
-  figures/          v2 PNG figures
-notebooks/          v1 EDA, clustering, evaluation plots
-extension/          Chrome (Manifest V3) browser extension
-data/processed/     embedding indexes, splits.json, feature-aggregate CSVs
-models/             v1 trained weights (gitignored) + results.json + cv_results.json
+v2/                 v2 source: SigLIP, attention pool, full ablation, calibration
+  demo.py             one-shot pipeline demo on the bundled sample dataset
+  train_cv_full_ablation.py   the headline 7-subset CV
+  extract_siglip_embeddings.py
+  attention_pool.py   additive attention over per-photo SigLIP embeddings
+  calibration.py      post-hoc Q4 luxury bias fix
+  cluster_images.py   K-means + UMAP on per-photo SigLIP embeddings
+  models/             v2 CV result JSONs (committed)
+  figures/            v2 PNG figures (committed)
+  README.md           v2-specific changelog and per-quarter calibration breakdown
+extension/          Chrome (Manifest V3) browser extension assets
+data/processed/     embedding indexes, splits.json, listings_clean_sample.csv
+models/             v1 result files (cv_results.json, results.json) + history JSONs
+notebooks/figures/  v1 precomputed analysis figures (PNG/CSV)
 ```
+
+v1 source code (training scripts, FastAPI backend) lives on the author's machine for the extension demo. It isn't shipped in this repo to keep the public version focused on v2; the v1 result JSONs and figures above are tracked so the v1 row in the comparison table is reproducible at the number level.
 
 ## How it works
 
@@ -221,20 +197,14 @@ Same tool, both sides of the transaction:
 
 ## How to run locally
 
-Backend (port 8000):
+The Chrome extension assets ship in `extension/` and are loadable as an unpacked extension. The FastAPI backend that serves `/predict-live` is **not shipped in this repo** (it lives on the author's machine alongside the v1 ResNet artifacts the per-photo overlay depends on); demo screenshots and a video walkthrough are in the report.
 
-```bash
-source venv/bin/activate
-uvicorn src.api.app:app --port 8000
-```
-
-Chrome extension (load unpacked):
+To load the frontend assets only (badges and panel render but the API calls will fail without a local backend):
 
 1. `chrome://extensions/` → toggle **Developer mode** on.
 2. Click **Load unpacked** → select the `extension/` folder.
-3. Browse to any supported Madrid rental listing URL. Badges appear automatically.
 
-The extension calls `http://127.0.0.1:8000/predict-live`, so the backend must be running locally.
+To run end-to-end on real Madrid listings, the backend stack (v1 FastAPI app + fine-tuned ResNet weights + precomputed v1 embeddings) is available from the author on request.
 
 ## Extension API in two sentences
 

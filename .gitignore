@@ -59,3 +59,14 @@ v2/data/text_embeddings_index.csv
 # v2 working logs + backups
 v2/logs/
 v2/*_original_copy.py
+
+# v1 source code: kept locally for the FastAPI extension backend, but not
+# shipped in this repo so the public version focuses on v2. The v1 result
+# JSONs (models/cv_results.json, models/results.json) and the precomputed
+# v1 figures (notebooks/figures/) ARE tracked, so the v1 row in the README
+# stays citeable.
+src/
+notebooks/01_eda.py
+notebooks/02_image_clusters.py
+notebooks/03_evaluation.py
+notebooks/04_expensive_images.py

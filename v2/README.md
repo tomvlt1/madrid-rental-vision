@@ -1,8 +1,9 @@
 # v2: what changed and why
 
 This folder is the rewrite that addresses the review feedback we got on v1.
-It lives separately from `src/` so the original v1 pipeline keeps working
-unmodified, which lets you compare the two side-by-side.
+v1 source code is not shipped in this repo (kept locally for the extension
+demo backend); v1 result JSONs and figures are tracked at the repo root so
+the v1 numbers are still citeable and comparable.
 
 ## TL;DR
 

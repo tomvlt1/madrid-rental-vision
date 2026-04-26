@@ -2,7 +2,7 @@
 
 I wanted to see whether a photo of a flat tells you how much it rents for, on top of the obvious stuff (size, zone, bedrooms). It does — and the answer got a lot stronger after a review surfaced two methodology bugs and pushed me to swap the image encoder. The v1 number was R² = 0.838 on 1,425 Madrid listings; the v2 rewrite hits R² = 0.884 on **6,047 listings**, MAE = €274 (a 33% drop from v1's €411).
 
-Dataset isn't in this repo (coursework + licensing). Code, trained models, evaluation results, and the full product layer (Chrome extension + Next.js dashboard) are. Bring your own listings CSV and everything re-runs.
+Dataset isn't in this repo (coursework + licensing). Code, trained models, evaluation results, and the Chrome extension are. Bring your own listings CSV and everything re-runs.
 
 ## Results
 
@@ -165,14 +165,13 @@ src/                v1 pipeline (unchanged)
   data/             cleaning, zone mapping, split manifest
   vision/           ResNet embeddings, fine-tuning, text embeddings
   models/           dataset prep, model architectures, training, inference
-  api/              FastAPI backend for the dashboard + browser extension
+  api/              FastAPI backend serving predictions to the browser extension
 v2/                 v2 rewrite addressing review feedback
   *.py              SigLIP, attention pooling, full ablation grid, calibration
   models/           v2 CV result JSONs
   figures/          v2 PNG figures
 notebooks/          v1 EDA, clustering, evaluation plots
 extension/          Chrome (Manifest V3) browser extension
-web/                Next.js frontend dashboard
 data/processed/     embedding indexes, splits.json, feature-aggregate CSVs
 models/             v1 trained weights (gitignored) + results.json + cv_results.json
 ```
@@ -201,9 +200,9 @@ We tried neural nets for the regression in v1 and they overfit with ~1,000 train
 
 ---
 
-# CasaIntel: browser extension and web app
+# CasaIntel: browser extension
 
-After training the base model we built a small product layer on top: a FastAPI backend that serves predictions, a Next.js dashboard, and a Chrome extension that overlays peer-expected rent on real Madrid rental listings as you browse.
+After training the base model we built a Chrome extension that overlays peer-expected rent on real Madrid rental listings as you browse, backed by a FastAPI service that serves predictions.
 
 ## What it does
 
@@ -212,12 +211,6 @@ After training the base model we built a small product layer on top: a FastAPI b
 - A small neutral badge on every search-result card (tabular-only peer estimate).
 - A full panel on each listing detail page (full-model prediction ± MAE, feature-by-feature breakdown, and a bottom-line "to lift the prediction, improve X" action line).
 - Colored overlays on each gallery photo (`HELPS`, `WEAK`, `NEUTRAL` + rank within the listing) so you can see which photos are pulling the listing up or dragging it down.
-
-**Web app** (`web/`, Next.js): an agency-framed dashboard with three workflows:
-
-1. **Portfolio.** A mixed demo portfolio (6 flagged + 6 healthy listings seeded on first visit). Aggregate stats: managed rent, commission @ 6%, peer-rent gap, potential commission upside × realization-rate slider.
-2. **Listing detail / Action Plan.** Photo scorecard with weakest/strongest photos ringed, feature-by-feature breakdown ("Why this number"), action plan bullets (re-shoot / re-price / rewrite), commission upside panel.
-3. **Intake.** Paste a listing ID or URL, see its baseline, drop new candidate photos. Uses **replace-worst-N** semantics: your uploads swap out the N weakest existing photos (ranked by precomputed per-photo scores), then the model re-predicts. Honest confidence band: any predicted change smaller than MAE is labeled "inside noise."
 
 ## Dual utility
 
@@ -235,15 +228,6 @@ source venv/bin/activate
 uvicorn src.api.app:app --port 8000
 ```
 
-Frontend (port 3000):
-
-```bash
-cd web
-npm install       # first time only
-npm run dev
-# → http://localhost:3000
-```
-
 Chrome extension (load unpacked):
 
 1. `chrome://extensions/` → toggle **Developer mode** on.
@@ -256,8 +240,7 @@ The extension calls `http://127.0.0.1:8000/predict-live`, so the backend must be
 
 `POST /predict-live` takes tabular + optional text/image description of a listing and returns a peer-expected rent with feature-by-feature decomposition. If you pass a `listing_id` that's in the precomputed dataset, you get an instant cache hit; otherwise the backend downloads the images, runs the SigLIP + sentence-transformer + gradient-boosting pipeline live, and returns the same structure in a few seconds.
 
-## Caveats for the product layer
+## Caveats
 
 - Search-card badges are tabular-only and deliberately don't show strong over/under-priced labels: tabular predictions are too noisy on outlier listings (penthouses, large terraces) to be confidently directional. The colored verdict only appears on the detail page where the full model (with photos + text) has enough information.
-- The "commission upside" number on the portfolio assumes a realization-rate slider (default 25%). It's a pitch framing, not a production forecast.
 - Per-photo `HELPS / HURTS / NEUTRAL` overlays are rank-based within the listing. They reflect the model's individual-photo activation, not a counterfactual €-contribution to the listing's rent.

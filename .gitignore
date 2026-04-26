@@ -14,15 +14,6 @@ data/processed/*.parquet
 models/*.pt
 models/*.joblib
 
-# frontend
-web/node_modules/
-web/.next/
-web/out/
-web/.env.local
-web/next-env.d.ts
-web/tsconfig.tsbuildinfo
-web/.turbo/
-
 # v2 (rewrite addressing review feedback)
 # strategic / private docs
 v2/COMMERCIAL_MEMO_*.md

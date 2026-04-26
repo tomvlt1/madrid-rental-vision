@@ -1,12 +1,12 @@
 # madrid-rental-vision
 
-I wanted to see whether a photo of a flat tells you how much it rents for, on top of the obvious stuff (size, zone, bedrooms). It does — and the answer got a lot stronger after a review surfaced two methodology bugs and pushed me to swap the image encoder. The v1 number was R² = 0.838 on 1,425 Madrid listings; the v2 rewrite hits R² = 0.884 on **6,047 listings**, MAE = €274 (a 33% drop from v1's €411).
+I wanted to see whether a photo of a flat tells you how much it rents for, on top of the obvious stuff (size, zone, bedrooms). It does, and the answer got a lot stronger after a review surfaced two methodology bugs and pushed me to swap the image encoder. The v1 number was R² = 0.838 on 1,425 Madrid listings; the v2 rewrite hits R² = 0.884 on **6,047 listings**, MAE = €274 (a 33% drop from v1's €411).
 
 Dataset isn't in this repo (coursework + licensing). Code, trained models, evaluation results, and the Chrome extension are. Bring your own listings CSV and everything re-runs.
 
 ## Results
 
-### v2 — full ablation grid, 5-fold CV, **N = 6,047 listings**
+### v2: full ablation grid, 5-fold CV, **N = 6,047 listings**
 
 This is the headline. Saved to `v2/models/cv_results_full_ablation.json`.
 
@@ -21,11 +21,11 @@ This is the headline. Saved to `v2/models/cv_results_full_ablation.json`.
 | GB text + SigLIP | 0.690 ± 0.004 | 448 ± 21 | 785 ± 84 | 21.1 |
 | **GB tabular + text + SigLIP** | **0.884 ± 0.007** | **274 ± 8** | **507 ± 72** | **12.6** |
 
-**SigLIP adds +0.08 R²** on top of tabular features (vs +0.05 in v1 with ResNet on a smaller dataset). Text becomes essentially redundant once SigLIP is in — the image-text contrastive pretraining already encodes the semantic content the description was contributing.
+**SigLIP adds +0.08 R²** on top of tabular features (vs +0.05 in v1 with ResNet on a smaller dataset). Text becomes essentially redundant once SigLIP is in: the image-text contrastive pretraining already encodes the semantic content the description was contributing.
 
 After post-hoc linear calibration (`v2/calibration.py`), Q4 luxury bias drops from −€280 baseline to −€164 (−41%) at a trivial cost in global MAE. See `v2/README.md` for the full Q4 breakdown.
 
-### v1 — original results, **N = 1,425 listings** (preserved for comparison)
+### v1: original results, **N = 1,425 listings** (preserved for comparison)
 
 Saved to `models/cv_results.json` and unchanged.
 
@@ -43,12 +43,12 @@ Saved to `models/cv_results.json` and unchanged.
 
 After the review, four concrete asks:
 
-1. **Report RMSE alongside MAE** — v2 does, in every CV table.
-2. **All combinations of {tabular, text, image}** — v2 runs the full 7-subset grid in `v2/train_cv_full_ablation.py`.
-3. **Better image pooling than mean** — v2 implements additive attention (`v2/attention_pool.py`). Honest result: tied with mean at our scale (1,425 listings); negative result preserved in the writeup.
-4. **Try CLIP / DINO / SigLIP instead of ResNet** — SigLIP-base swapped in (`v2/extract_siglip_embeddings.py`). Single biggest win.
+1. **Report RMSE alongside MAE.** v2 does, in every CV table.
+2. **All combinations of {tabular, text, image}.** v2 runs the full 7-subset grid in `v2/train_cv_full_ablation.py`.
+3. **Better image pooling than mean.** v2 implements additive attention (`v2/attention_pool.py`). Honest result: tied with mean at our scale (1,425 listings); negative result preserved in the writeup.
+4. **Try CLIP / DINO / SigLIP instead of ResNet.** SigLIP-base swapped in (`v2/extract_siglip_embeddings.py`). Single biggest win.
 
-On top of that, the dataset grew 4.2× (1,425 → 6,047 listings) via stratified luxury-tier scraping, which let `train_cv_full_ablation.py` run on the full set (the earlier scripts inner-join on ResNet, which only covers the original 1,425 — those numbers are kept for v1 comparison). v1 source code in `src/` is untouched; everything new is in `v2/`.
+On top of that, the dataset grew 4.2× (1,425 → 6,047 listings) via stratified luxury-tier scraping, which let `train_cv_full_ablation.py` run on the full set. The earlier scripts inner-join on ResNet (which only covers the original 1,425), so those numbers are kept for v1 comparison. v1 source code in `src/` is untouched; everything new is in `v2/`.
 
 ## Setup
 
@@ -182,11 +182,11 @@ The full multimodal pipeline (v2 headline): listing photos pass through SigLIP-b
 
 v1 used the same pattern but with frozen and fine-tuned ResNet-50 (ImageNet) instead of SigLIP. The swap from ResNet to SigLIP was the single biggest accuracy win.
 
-We tried neural nets for the regression in v1 and they overfit with ~1,000 training samples. Gradient Boosting handles the high-dim embeddings much better at this scale. We also tried attention pooling over per-photo embeddings in v2 — same result as mean-pool on this dataset size. Both kept in the repo for ablation honesty.
+We tried neural nets for the regression in v1 and they overfit with ~1,000 training samples. Gradient Boosting handles the high-dim embeddings much better at this scale. We also tried attention pooling over per-photo embeddings in v2: same result as mean-pool on this dataset size. Both kept in the repo for ablation honesty.
 
 ## Known limitations
 
-- **Q4 luxury MAE is still €541 baseline / €528 calibrated** even on 6,047 listings. Calibration fixed the systematic bias (model now predicts the right average for €4k+ listings) but not the variance — individual luxury predictions can still be off by ±€500. Need a separate luxury head or significantly more luxury training data to fix this.
+- **Q4 luxury MAE is still €541 baseline / €528 calibrated** even on 6,047 listings. Calibration fixed the systematic bias (model now predicts the right average for €4k+ listings) but not the variance: individual luxury predictions can still be off by ±€500. Need a separate luxury head or significantly more luxury training data to fix this.
 - **Listing-level dedup is conservative, not exhaustive.** Catches exact feature-tuple matches (46 re-listings collapsed in v1, 567 in v2's new scrape). Near-duplicates with slightly different text still slip through.
 - **Per-photo score is a model activation, not a rent figure.** The fine-tuned ResNet's regression head from v1 was trained on per-image log-rent where all photos in a listing share one target. Per-image output lands in the rent distribution but doesn't represent the rent contribution of any single photo. The UI shows rank within listing, not absolute €.
 - **`v2/train_cv_v2.py` and `v2/train_cv_siglip.py` are still capped at 1,425 listings** because they inner-join on ResNet embeddings (which we never re-extracted on the new listings). The ablation we trust for the 6,047 headline is `v2/train_cv_full_ablation.py`.
@@ -195,7 +195,7 @@ We tried neural nets for the regression in v1 and they overfit with ~1,000 train
 
 - **Per-room-type embeddings.** Right now we just average all images together. A kitchen photo and a bathroom photo get mixed into one vector. Zero-shot room-type classification with CLIP/SigLIP could split these.
 - **Hyperparameter tuning.** We never tuned the gradient boosting (500 trees, max_depth=4, lr=0.05). Grid search or Bayesian optimization would probably squeeze out a couple of points.
-- **Prediction intervals.** MC Dropout, deep ensembles, or conformal prediction would give per-listing confidence instead of a constant ±MAE band — important for the luxury tier where variance is wide.
+- **Prediction intervals.** MC Dropout, deep ensembles, or conformal prediction would give per-listing confidence instead of a constant ±MAE band, which matters for the luxury tier where variance is wide.
 - **More cities.** Barcelona, Valencia to test generalization; temporal re-scrape to get days-on-market signal.
 
 ---

@@ -949,7 +949,24 @@
     const payload = parseDetailPage();
     if (!payload) return;
     const anchor = findPriceBlock();
-    showSkeleton(anchor, "Scoring photos…");
+
+    // Rotating loading messages: each line names a real step the multimodal
+    // backend is doing, so the wait quietly communicates the value prop
+    // (we read photos AND text AND tabular). Cycle every 1.2s.
+    const loadingMessages = [
+      "Reading the listing…",
+      "Encoding photos through SigLIP…",
+      "Comparing to peer rents in the same zone…",
+    ];
+    let msgIdx = 0;
+    showSkeleton(anchor, loadingMessages[0]);
+    const rotateTimer = setInterval(() => {
+      msgIdx = (msgIdx + 1) % loadingMessages.length;
+      const toneEl = document.querySelector(
+        "#casa-intel-panel.casa-intel-loading .casa-intel-tone",
+      );
+      if (toneEl) toneEl.textContent = loadingMessages[msgIdx];
+    }, 1200);
 
     try {
       const resp = await fetch(API_URL + "/predict-live", {
@@ -975,6 +992,8 @@
         anchor,
         "Backend unreachable: is uvicorn running on " + API_URL + "?",
       );
+    } finally {
+      clearInterval(rotateTimer);
     }
   }
 
@@ -1083,6 +1102,11 @@
         await pinListing(payload, result);
         btn.textContent = "✓ Pinned";
         btn.classList.add("pinned");
+        // Subtle scale-pop to acknowledge the action
+        btn.classList.remove("casa-intel-pin-pop");
+        // Re-trigger by forcing a reflow before re-adding
+        void btn.offsetWidth;
+        btn.classList.add("casa-intel-pin-pop");
       }
     });
     return btn;
@@ -1094,7 +1118,15 @@
     const launcher = document.getElementById("casa-intel-saved-launcher");
     if (!launcher) return;
     getSavedListings().then((all) => {
-      launcher.textContent = all.length > 0 ? `📌 Saved (${all.length})` : "📌 Saved";
+      const newText = all.length > 0 ? `📌 Saved (${all.length})` : "📌 Saved";
+      // Only animate when the count actually changes (avoid spurious pops on
+      // every refresh).
+      if (launcher.textContent !== newText && launcher.textContent !== "") {
+        launcher.classList.remove("casa-intel-launcher-pop");
+        void launcher.offsetWidth;
+        launcher.classList.add("casa-intel-launcher-pop");
+      }
+      launcher.textContent = newText;
     });
   }
 
@@ -1141,13 +1173,22 @@
     drawer.appendChild(header);
 
     if (all.length === 0) {
-      drawer.appendChild(
+      const empty = el("div", "casa-intel-saved-empty");
+      empty.appendChild(
         el(
           "div",
-          "casa-intel-saved-empty",
-          "No pinned listings yet. Click the 📌 Pin button on any listing's detail panel.",
+          "casa-intel-saved-empty-title",
+          "Nothing saved yet.",
         ),
       );
+      empty.appendChild(
+        el(
+          "div",
+          "casa-intel-saved-empty-body",
+          "Pin a listing on its detail page. We'll keep snapshots of how its peer estimate moves between visits, so you can see at a glance whether the model's view of it has shifted.",
+        ),
+      );
+      drawer.appendChild(empty);
       return drawer;
     }
 
@@ -1424,6 +1465,16 @@
           resultVal.classList.remove("loading");
           // Animate from what's currently shown to the new value
           animateEur(resultVal, displayedEur, newEur, 500);
+          // Brief color flash on meaningful change. Threshold of €30 so we
+          // don't flash on rounding noise.
+          const stepDelta = newEur - displayedEur;
+          if (Math.abs(stepDelta) >= 30) {
+            const flashClass =
+              stepDelta > 0 ? "casa-intel-flash-up" : "casa-intel-flash-down";
+            resultVal.classList.remove("casa-intel-flash-up", "casa-intel-flash-down");
+            void resultVal.offsetWidth;
+            resultVal.classList.add(flashClass);
+          }
           displayedEur = newEur;
           if (Math.abs(delta) < 5) {
             resultDelta.textContent = "(no meaningful change)";
@@ -1586,6 +1637,22 @@
   }
 
   // --------------------- boot ------------------------------------------
+
+  // Brand-appropriate console hello for anyone with devtools open. Dry, factual,
+  // ends with a small invitation. No emojis in the body — keeps it grown-up.
+  try {
+    console.log(
+      "%cCasaIntel%c  multimodal peer-rent for Madrid",
+      "background:#0f766e;color:#fff;padding:2px 8px;border-radius:4px;font-weight:700;letter-spacing:0.04em;",
+      "color:#475569;font-weight:500;",
+    );
+    console.log(
+      "%cReading the source? Nice. SigLIP image embeddings + multilingual MiniLM + gradient boosting on log-rent. R² 0.88, MAE €274, 5-fold CV on 6,047 listings. The lower number is the honest one.",
+      "color:#64748b;font-style:italic;",
+    );
+  } catch (_) {
+    /* no-op if console is restricted */
+  }
 
   // Saved listings launcher renders on every page (search and detail), so
   // the user can always reach their pinned set.

@@ -1,5 +1,55 @@
 /* CasaIntel injected styles: scoped under .casa-intel-* to avoid clashes. */
 
+/* ============== ACCESSIBILITY: REDUCED MOTION =====================
+   Honour the user's system preference. All animations below collapse to
+   instant when reduced motion is requested. No JS opt-out needed. */
+@media (prefers-reduced-motion: reduce) {
+  .casa-intel-detail-panel,
+  .casa-intel-badge-soft,
+  .casa-intel-photo-overlay,
+  .casa-intel-saved-drawer,
+  .casa-intel-enhance-overlay,
+  .casa-intel-enhance-modal,
+  .casa-intel-pin-btn.casa-intel-pin-pop,
+  .casa-intel-saved-launcher.casa-intel-launcher-pop,
+  .casa-intel-negotiate-copy.copied,
+  .casa-intel-whatif-result-val.casa-intel-flash-up,
+  .casa-intel-whatif-result-val.casa-intel-flash-down {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ============== ENTRANCE ANIMATIONS =============================== */
+
+@keyframes casa-intel-fade-rise {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes casa-intel-modal-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes casa-intel-overlay-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes casa-intel-pop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+@keyframes casa-intel-flash-up {
+  0%   { color: #047857; text-shadow: 0 0 0 rgba(4, 120, 87, 0); }
+  40%  { color: #047857; text-shadow: 0 0 12px rgba(4, 120, 87, 0.18); }
+  100% { color: #0f172a; text-shadow: 0 0 0 rgba(4, 120, 87, 0); }
+}
+@keyframes casa-intel-flash-down {
+  0%   { color: #b91c1c; text-shadow: 0 0 0 rgba(185, 28, 28, 0); }
+  40%  { color: #b91c1c; text-shadow: 0 0 12px rgba(185, 28, 28, 0.18); }
+  100% { color: #0f172a; text-shadow: 0 0 0 rgba(185, 28, 28, 0); }
+}
+
 .casa-intel-badge {
   display: inline-flex;
   flex-direction: column;
@@ -82,6 +132,7 @@
   font-size: 11px;
   line-height: 1.3;
   max-width: 170px;
+  animation: casa-intel-fade-rise 280ms cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 .casa-intel-soft-line {
   display: flex;
@@ -125,6 +176,7 @@
   color: #0f172a;
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
   max-width: 420px;
+  animation: casa-intel-fade-rise 320ms cubic-bezier(0.25, 1, 0.5, 1) both;
 }
 
 .casa-intel-detail-panel .casa-intel-header {
@@ -452,6 +504,9 @@
   border-color: #67e8f9;
   color: #155e75;
 }
+.casa-intel-pin-btn.casa-intel-pin-pop {
+  animation: casa-intel-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 
 /* ============== WHAT-IF SIMULATOR =================================== */
 
@@ -571,6 +626,12 @@
 .casa-intel-whatif-result-val.loading {
   opacity: 0.4;
 }
+.casa-intel-whatif-result-val.casa-intel-flash-up {
+  animation: casa-intel-flash-up 800ms ease-out;
+}
+.casa-intel-whatif-result-val.casa-intel-flash-down {
+  animation: casa-intel-flash-down 800ms ease-out;
+}
 .casa-intel-whatif-result-delta {
   font-size: 11px;
   color: #64748b;
@@ -669,6 +730,7 @@
 .casa-intel-negotiate-copy.copied {
   background: #059669;
   border-color: #059669;
+  animation: casa-intel-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .casa-intel-negotiate-disclaimer {
   margin-top: 6px;
@@ -701,6 +763,9 @@
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.24);
 }
+.casa-intel-saved-launcher.casa-intel-launcher-pop {
+  animation: casa-intel-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 .casa-intel-saved-drawer {
   position: fixed;
   bottom: 64px;
@@ -716,6 +781,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  animation: casa-intel-modal-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .casa-intel-saved-header {
   display: flex;
@@ -757,11 +823,21 @@
   color: #0f172a;
 }
 .casa-intel-saved-empty {
-  padding: 28px 18px;
+  padding: 28px 22px;
   text-align: center;
   color: #64748b;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.55;
+}
+.casa-intel-saved-empty-title {
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.casa-intel-saved-empty-body {
+  font-size: 11.5px;
+  color: #64748b;
 }
 .casa-intel-saved-list {
   overflow-y: auto;
@@ -902,6 +978,11 @@
 
 /* ============== PHOTO OVERLAY ENHANCEMENTS ========================== */
 
+/* Per-photo overlay arrives smoothly as Idealista lazy-loads thumbnails */
+.casa-intel-photo-overlay {
+  animation: casa-intel-fade-rise 240ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
 /* Room label (zero-shot SigLIP classification) */
 .casa-intel-photo-room {
   display: inline-block;
@@ -948,6 +1029,7 @@
   justify-content: center;
   padding: 24px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  animation: casa-intel-overlay-fade 200ms ease-out both;
 }
 .casa-intel-enhance-modal {
   width: min(900px, 95vw);
@@ -958,6 +1040,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  animation: casa-intel-modal-enter 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .casa-intel-enhance-header {
   position: relative;

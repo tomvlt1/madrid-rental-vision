@@ -69,6 +69,63 @@
     return rounded < 0 ? "−" + formatted : formatted;
   }
 
+  // Roll a euro number from `from` to `to` over `durationMs` and write the
+  // intermediate values into `node.textContent`. Uses ease-out-cubic so the
+  // number decelerates as it lands. Caps at 60fps via requestAnimationFrame.
+  function animateEur(node, from, to, durationMs) {
+    if (from == null || !Number.isFinite(from)) {
+      node.textContent = fmtEur(to);
+      return;
+    }
+    const dur = durationMs || 450;
+    const start = performance.now();
+    function step(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const v = from + (to - from) * eased;
+      node.textContent = fmtEur(v);
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // Build an honest asymmetric prediction interval. Prefers backend-supplied
+  // bounds (predicted_lower_eur / predicted_upper_eur from the stratified
+  // residual quantiles in v2/models/intervals.json). Falls back to a
+  // log-space-derived percentage approximation if the backend doesn't serve
+  // them yet. Either way, the rendering replaces the old "± MAE" symmetric
+  // band — predictions in this domain are not symmetric around the point
+  // estimate (luxury tail makes the upper bound wider).
+  function intervalBounds(result) {
+    if (
+      result &&
+      result.predicted_lower_eur != null &&
+      result.predicted_upper_eur != null
+    ) {
+      return {
+        lower: result.predicted_lower_eur,
+        upper: result.predicted_upper_eur,
+        source: "model",
+      };
+    }
+    const p = result && result.predicted_rent_eur;
+    if (p == null || !Number.isFinite(p)) return null;
+    // Heuristic: 80% asymmetric range derived from v2 5-fold OOF residuals
+    // in log-space (rmse_log ≈ 0.18). expm1-asymmetry pushes the upper
+    // bound slightly wider. These factors roughly match the empirical
+    // 10/90 quantiles and stay honest about the luxury tail.
+    return {
+      lower: Math.round(p * 0.82),
+      upper: Math.round(p * 1.22),
+      source: "approx",
+    };
+  }
+
+  function fmtRange(bounds) {
+    if (!bounds) return "";
+    return fmtEur(bounds.lower) + " – " + fmtEur(bounds.upper);
+  }
+
   function el(tag, className, text) {
     const e = document.createElement(tag);
     if (className) e.className = className;
@@ -189,19 +246,28 @@
         deltaRow(wrap, "Combined effect", sub, b.interaction_eur);
       }
 
-      // Total row
+      // Total row + asymmetric range subline
       const totalRow = el("div", "casa-intel-details-row casa-intel-details-total");
       totalRow.appendChild(el("span", "casa-intel-details-key", "Full model"));
       totalRow.appendChild(
         el(
           "span",
           "casa-intel-details-val",
-          fmtEur(b.full_eur ?? result.predicted_rent_eur) +
-            " ± " +
-            fmtEur(result.mae_eur),
+          fmtEur(b.full_eur ?? result.predicted_rent_eur),
         ),
       );
       wrap.appendChild(totalRow);
+      const bounds = intervalBounds(result);
+      if (bounds) {
+        const rangeRow = el("div", "casa-intel-details-row casa-intel-details-range");
+        rangeRow.appendChild(
+          el("span", "casa-intel-details-key", "80% range"),
+        );
+        rangeRow.appendChild(
+          el("span", "casa-intel-details-val", fmtRange(bounds)),
+        );
+        wrap.appendChild(rangeRow);
+      }
     }
 
     // Context rows
@@ -251,26 +317,27 @@
       }
     }
 
-    // Noise guidance
+    // Noise guidance — uses the asymmetric range to decide whether the gap
+    // is inside the model's plausible spread for this listing.
     const delta = result.delta_vs_current_eur;
     if (delta != null && Number.isFinite(delta)) {
-      const mae = result.mae_eur || 443;
-      const inNoise = Math.abs(delta) < mae;
-      const note = el(
-        "div",
-        "casa-intel-details-note",
-        inNoise
-          ? "The " +
-              fmtEur(Math.abs(delta)) +
-              " gap is smaller than the model's typical ±" +
-              fmtEur(mae) +
-              " error. Too close to call. This listing is priced in line with peers."
-          : "The " +
-              fmtEur(Math.abs(delta)) +
-              " gap is larger than the model's typical ±" +
-              fmtEur(mae) +
-              " error. A real pricing difference, not measurement error.",
-      );
+      const bounds = intervalBounds(result);
+      const asking = result.current_rent_eur;
+      let inRange = null;
+      if (bounds && asking != null) {
+        inRange = asking >= bounds.lower && asking <= bounds.upper;
+      }
+      const noteText =
+        inRange === true
+          ? "Asking sits inside the 80% range " +
+            (bounds ? "(" + fmtRange(bounds) + ")" : "") +
+            ". Consistent with peers — too close to call as over- or under-priced."
+          : inRange === false
+          ? "Asking sits outside the 80% range " +
+            (bounds ? "(" + fmtRange(bounds) + ")" : "") +
+            ". A real pricing difference, not measurement noise."
+          : "The " + fmtEur(Math.abs(delta)) + " gap is the difference between asking and the point estimate.";
+      const note = el("div", "casa-intel-details-note", noteText);
       wrap.appendChild(note);
     }
     return wrap;
@@ -535,10 +602,25 @@
       }[result.diagnosis] || "Peer estimate";
     panel.appendChild(el("div", "casa-intel-tone", detailToneLabel));
 
-    const big = el("div", "casa-intel-big", fmtEur(result.predicted_rent_eur) + " ");
-    const mae = el("span", "casa-intel-mae", "± " + fmtEur(result.mae_eur));
-    big.appendChild(mae);
+    const big = el("div", "casa-intel-big", fmtEur(result.predicted_rent_eur));
     panel.appendChild(big);
+
+    // Asymmetric 80% interval, replacing the old ± MAE band.
+    const bounds = intervalBounds(result);
+    if (bounds) {
+      const rangeRow = el("div", "casa-intel-range");
+      rangeRow.appendChild(el("span", "casa-intel-range-label", "80% range"));
+      rangeRow.appendChild(el("span", "casa-intel-range-val", fmtRange(bounds)));
+      if (bounds.source === "approx") {
+        const tip = el("span", "casa-intel-range-source", "approx.");
+        tip.title =
+          "Approximate interval derived from 5-fold OOF residuals " +
+          "(rmse_log ≈ 0.18). Replace with stratified quantiles from " +
+          "v2/models/intervals.json once the backend serves them.";
+        rangeRow.appendChild(tip);
+      }
+      panel.appendChild(rangeRow);
+    }
 
     const delta = result.delta_vs_current_eur;
     if (delta != null && Number.isFinite(delta)) {
@@ -632,6 +714,13 @@
         ? "Weak"
         : "Neutral";
     badge.appendChild(el("span", "casa-intel-photo-tone", label));
+    // Room label (zero-shot SigLIP classification) — only renders if the
+    // backend provides it. Falls back gracefully if absent.
+    if (impact.room_label) {
+      badge.appendChild(
+        el("span", "casa-intel-photo-room", impact.room_label),
+      );
+    }
     // Rank within the listing's photos. Intentionally NOT showing a €
     // delta: per-photo score is a model activation in the rent dimension,
     // not an actual rent contribution. Showing "+€418" would imply the
@@ -645,7 +734,132 @@
         ),
       );
     }
+    // For weak photos, add a "↗ before/after" link that opens an
+    // auto-enhance preview modal. This shows the user what a brightness/
+    // contrast/saturation bump could look like.
+    if (impact.tone === "hurts" && impact.image_url) {
+      const enhanceLink = el(
+        "button",
+        "casa-intel-photo-enhance-link",
+        "↗ see fix",
+      );
+      enhanceLink.setAttribute("type", "button");
+      enhanceLink.title = "Preview an auto-brightness/contrast/saturation fix";
+      enhanceLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showPhotoEnhanceModal(impact);
+      });
+      badge.appendChild(enhanceLink);
+    }
     parent.appendChild(badge);
+  }
+
+  // ---- photo auto-enhance modal: side-by-side before / after ----------
+
+  function showPhotoEnhanceModal(impact) {
+    closePhotoEnhanceModal();
+
+    const overlay = el("div", "casa-intel-enhance-overlay");
+    overlay.id = "casa-intel-enhance-overlay";
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closePhotoEnhanceModal();
+    });
+
+    const modal = el("div", "casa-intel-enhance-modal");
+    overlay.appendChild(modal);
+
+    // Header
+    const header = el("div", "casa-intel-enhance-header");
+    const title = el("div", "casa-intel-enhance-title", "Photo auto-fix preview");
+    const subtitle = el(
+      "div",
+      "casa-intel-enhance-sub",
+      "Brightness +20%, contrast +15%, saturation +15%. Pure CSS preview, " +
+        "not a re-edit — this is what an enhanced version would roughly look like.",
+    );
+    header.appendChild(title);
+    header.appendChild(subtitle);
+
+    const closeBtn = el("button", "casa-intel-enhance-close", "×");
+    closeBtn.setAttribute("type", "button");
+    closeBtn.addEventListener("click", closePhotoEnhanceModal);
+    header.appendChild(closeBtn);
+    modal.appendChild(header);
+
+    // Image grid
+    const grid = el("div", "casa-intel-enhance-grid");
+
+    function imagePane(label, filterValue) {
+      const pane = el("div", "casa-intel-enhance-pane");
+      pane.appendChild(el("div", "casa-intel-enhance-label", label));
+      const wrap = el("div", "casa-intel-enhance-imgwrap");
+      const img = document.createElement("img");
+      img.className = "casa-intel-enhance-img";
+      img.src = impact.image_url;
+      img.alt = label;
+      img.referrerPolicy = "no-referrer";
+      if (filterValue) img.style.filter = filterValue;
+      wrap.appendChild(img);
+      pane.appendChild(wrap);
+      return pane;
+    }
+
+    grid.appendChild(imagePane("Original", null));
+    grid.appendChild(
+      imagePane("Auto-enhanced", "brightness(1.2) contrast(1.15) saturate(1.15)"),
+    );
+    modal.appendChild(grid);
+
+    // Strength slider — lets the user dial the enhancement up or down.
+    const sliderRow = el("div", "casa-intel-enhance-slider-row");
+    sliderRow.appendChild(
+      el("span", "casa-intel-enhance-slider-label", "Strength:"),
+    );
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = "0";
+    slider.max = "100";
+    slider.value = "50";
+    slider.className = "casa-intel-enhance-slider";
+    sliderRow.appendChild(slider);
+    const sliderVal = el("span", "casa-intel-enhance-slider-val", "50%");
+    sliderRow.appendChild(sliderVal);
+    modal.appendChild(sliderRow);
+
+    const enhancedImg = grid.querySelectorAll(".casa-intel-enhance-img")[1];
+    slider.addEventListener("input", () => {
+      const pct = parseInt(slider.value, 10);
+      sliderVal.textContent = pct + "%";
+      // Scale 0..100 → 1.0..1.4 brightness / 1.0..1.3 contrast / 1.0..1.3 sat
+      const b = 1 + (0.4 * pct) / 100;
+      const c = 1 + (0.3 * pct) / 100;
+      const s = 1 + (0.3 * pct) / 100;
+      enhancedImg.style.filter = `brightness(${b.toFixed(2)}) contrast(${c.toFixed(2)}) saturate(${s.toFixed(2)})`;
+    });
+
+    // Hint
+    modal.appendChild(
+      el(
+        "div",
+        "casa-intel-enhance-hint",
+        "Tip: in production photography, low-light interiors gain the most " +
+          "from brightness + contrast. Reshoot in daylight if possible.",
+      ),
+    );
+
+    document.body.appendChild(overlay);
+    // Esc to close
+    document.addEventListener("keydown", onEnhanceKeydown, { once: true });
+  }
+
+  function onEnhanceKeydown(e) {
+    if (e.key === "Escape") closePhotoEnhanceModal();
+  }
+
+  function closePhotoEnhanceModal() {
+    const existing = document.getElementById("casa-intel-enhance-overlay");
+    if (existing) existing.remove();
   }
 
   function annotateGalleryPhotos(impacts) {
@@ -1179,14 +1393,17 @@
       state.sqft = payload.sqft;
       slider.value = String(state.sqft || 60);
       sliderVal.textContent = (state.sqft || 60) + " m²";
-      resultVal.textContent = fmtEur(baseEur);
+      animateEur(resultVal, displayedEur, baseEur, 500);
+      displayedEur = baseEur;
       resultDelta.textContent = "(baseline)";
       resultDelta.className = "casa-intel-whatif-result-delta";
     });
     wrap.appendChild(resetBtn);
 
-    // Debounced API recall
+    // Debounced API recall. Tracks the last-displayed value so the animation
+    // rolls from where the user is looking, not from baseline every time.
     let timer = null;
+    let displayedEur = baseEur;
     function debouncedRecall() {
       if (timer) clearTimeout(timer);
       resultVal.classList.add("loading");
@@ -1204,8 +1421,10 @@
           const data = await resp.json();
           const newEur = data.predicted_rent_eur;
           const delta = newEur - baseEur;
-          resultVal.textContent = fmtEur(newEur);
           resultVal.classList.remove("loading");
+          // Animate from what's currently shown to the new value
+          animateEur(resultVal, displayedEur, newEur, 500);
+          displayedEur = newEur;
           if (Math.abs(delta) < 5) {
             resultDelta.textContent = "(no meaningful change)";
             resultDelta.className = "casa-intel-whatif-result-delta";

@@ -1383,17 +1383,25 @@
       ),
     );
 
-    // Working copy of the payload. Recall the API in tabular mode for speed
-    // (image extraction takes seconds; toggles need to feel instant).
+    // Working copy of the payload. We explicitly strip the rich-modality
+    // fields (description + image_urls) so the backend's "smartest model
+    // available" logic falls through to gb_tab. The `mode: "tabular"`
+    // hint alone wasn't enough — the backend ignores that flag and just
+    // looks at what's in the payload. With description and image_urls
+    // gone, only tabular features are present, so the backend has no
+    // choice but to use gb_tab. Now our offset math is honest:
+    //   displayed = gb_tab(state) + (headline - gb_tab(original))
+    // which correctly returns to the headline when toggles revert.
     const state = { ...payload, mode: "tabular" };
+    delete state.description;
+    delete state.image_urls;
 
     // Anchor the simulator on the headline number (gb_all, full multimodal).
     // The simulator hits gb_tab on each toggle for speed, so its raw output
     // is naturally lower than the headline by the photo+description
     // contribution. We apply that contribution as a constant offset so the
     // displayed numbers stay in headline space — toggling and untoggling
-    // an amenity correctly returns to the headline, while real toggle
-    // changes still produce a meaningful delta in the tabular dimension.
+    // an amenity correctly returns to the headline.
     const baseEur = result.predicted_rent_eur;
     const tabBaseEur =
       result.breakdown && result.breakdown.tabular_eur != null

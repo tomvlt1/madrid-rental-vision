@@ -18,7 +18,7 @@
         "https://www.idealista.com/alquiler-viviendas/madrid*",
         "https://www.idealista.com/inmueble/*"
       ],
-      "js": ["src/content.js"],
+      "js": ["lib/jspdf.umd.min.js", "src/content.js"],
       "css": ["styles/injected.css"],
       "run_at": "document_idle"
     }

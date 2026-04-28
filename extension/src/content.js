@@ -645,6 +645,14 @@
       if (negotiation) panel.appendChild(negotiation);
     }
 
+    // Export PDF: bottom of the panel so it's the last action a user takes
+    // after reviewing everything above.
+    if (payload) {
+      const actions = el("div", "casa-intel-panel-actions");
+      actions.appendChild(exportButton(payload, result));
+      panel.appendChild(actions);
+    }
+
     return panel;
   }
 
@@ -1648,6 +1656,403 @@
     );
 
     return wrap;
+  }
+
+  // ============== PDF EXPORT ==========================================
+
+  // Per-room photography tips. Used to turn "weak photo" into "weak kitchen
+  // photo, here's how to fix it" — the critique only ships the room-specific
+  // tip if the backend served a room_label; otherwise falls back to generic.
+  const PHOTO_TIPS = {
+    Kitchen:        "Try a daytime shot with the lights on, neutral tones, and the surfaces clear.",
+    Bedroom:        "Wide-angle, made bed, natural light. Avoid clutter on the floor.",
+    Bathroom:       "Wide-angle to make the space feel bigger, lights on, no toiletries on counters.",
+    "Living room":  "Open the curtains, turn on lights, declutter sofa and coffee table.",
+    "Dining room":  "A clear table reads cleaner. Daytime light works best.",
+    Terrace:        "Catch golden-hour light if possible, declutter plants, show the view.",
+    Exterior:       "Frame the building's best angle. Daytime, no cars in the way.",
+    Hallway:        "Hallways always feel narrow — wide-angle helps a lot.",
+    Storage:        "Clear out personal items first, show the empty volume.",
+    "Floor plan":   "Floor plans don't lift rent on their own. Make sure the room photos shine.",
+    Garage:         "Wide-angle, lights on, no clutter on the floor.",
+    Pool:           "Daytime, clear water, no debris.",
+  };
+  const FALLBACK_TIP = "Try shooting in daylight with better contrast and a wide-angle lens.";
+
+  function exportButton(payload, result) {
+    const btn = el("button", "casa-intel-export-btn");
+    btn.setAttribute("type", "button");
+    btn.textContent = "📄 Export PDF";
+    btn.title = "Download a one-page analysis of this listing";
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      btn.disabled = true;
+      btn.textContent = "Generating…";
+      try {
+        await generateAnalysisPDF(payload, result);
+        btn.textContent = "✓ Downloaded";
+        setTimeout(() => {
+          btn.textContent = "📄 Export PDF";
+          btn.disabled = false;
+        }, 1800);
+      } catch (err) {
+        console.error("CasaIntel PDF generation failed:", err);
+        btn.textContent = "PDF failed";
+        setTimeout(() => {
+          btn.textContent = "📄 Export PDF";
+          btn.disabled = false;
+        }, 2400);
+      }
+    });
+    return btn;
+  }
+
+  // ---- PDF layout helpers --------------------------------------------
+
+  // Wrap text to a column width using jsPDF's splitTextToSize, then write line
+  // by line. Returns the y-coordinate after the last line.
+  function pdfText(doc, text, x, y, maxWidth, lineHeight) {
+    const lines = doc.splitTextToSize(text, maxWidth);
+    for (const line of lines) {
+      doc.text(line, x, y);
+      y += lineHeight;
+    }
+    return y;
+  }
+
+  function pdfHr(doc, x1, y, x2, color) {
+    doc.setDrawColor(...color);
+    doc.setLineWidth(0.4);
+    doc.line(x1, y, x2, y);
+  }
+
+  function pdfSectionHeader(doc, label, x, y) {
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 118, 110); // teal
+    doc.setFontSize(9);
+    doc.text(label.toUpperCase(), x, y);
+    doc.setTextColor(15, 23, 42); // slate
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    return y + 5;
+  }
+
+  // Group photos into "what works" and "what needs work" buckets and craft
+  // human-readable critiques. If room_label is available, the critique reads
+  // "the kitchen photo (#3 of 22)..."; if not, it falls back to "photo #3".
+  function buildPhotoCritiques(impacts) {
+    if (!impacts || impacts.length === 0) return { strengths: [], weaknesses: [] };
+
+    const strong = impacts
+      .filter((p) => p.tone === "helps")
+      .sort((a, b) => a.rank_in_listing - b.rank_in_listing);
+    const weak = impacts
+      .filter((p) => p.tone === "hurts")
+      .sort((a, b) => b.rank_in_listing - a.rank_in_listing);
+    const total = impacts.length;
+
+    const strengths = strong.slice(0, 3).map((p) => {
+      const noun = p.room_label ? p.room_label.toLowerCase() + " photo" : "photo";
+      const rankPart = `(#${p.rank_in_listing} of ${total})`;
+      if (p.rank_in_listing === 1) {
+        return `The ${noun} ${rankPart} is the strongest in this listing — lead with it.`;
+      }
+      return `The ${noun} ${rankPart} is among the strongest. Keep it prominent.`;
+    });
+
+    const weaknesses = weak.slice(0, 4).map((p) => {
+      const noun = p.room_label ? p.room_label + " photo" : "Photo";
+      const rankPart = `(#${p.rank_in_listing} of ${total})`;
+      const tip = (p.room_label && PHOTO_TIPS[p.room_label]) || FALLBACK_TIP;
+      // Capitalize first char if it's a "Photo" fallback, otherwise the room
+      // label itself ("Kitchen photo") looks right at sentence start.
+      const subject = p.room_label ? noun : "Photo";
+      return `${subject} ${rankPart} ranks low in this listing. ${tip}`;
+    });
+
+    return { strengths, weaknesses };
+  }
+
+  function buildAmenityList(payload) {
+    const present = AMENITY_KEYS.filter((k) => payload[k]).map(
+      (k) => AMENITY_LABELS[k],
+    );
+    return present.length > 0 ? present.join(", ") : "None marked";
+  }
+
+  function fmtVerdict(result) {
+    return (
+      {
+        overpriced: "Asking is above peer estimate",
+        underpriced: "Asking is below peer estimate",
+        fair: "Asking is consistent with peers",
+        unknown: "Peer estimate available",
+      }[result.diagnosis] || "Peer estimate available"
+    );
+  }
+
+  function todayIso() {
+    return new Date().toISOString().split("T")[0];
+  }
+
+  // ---- main PDF generation -------------------------------------------
+
+  async function generateAnalysisPDF(payload, result) {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      throw new Error("jsPDF not loaded");
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+
+    // A4: 210 x 297mm. Use 18mm margins.
+    const M = 18;
+    const W = 210 - 2 * M;
+    let y = M;
+
+    // ---- Title bar ----
+    doc.setFillColor(15, 118, 110); // teal
+    doc.rect(0, 0, 210, 14, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("CasaIntel", M, 9);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Listing analysis", M + 30, 9);
+    doc.text(todayIso(), 210 - M, 9, { align: "right" });
+
+    y = 24;
+
+    // ---- Listing header ----
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    const title = (payload.location || "Listing " + payload.listing_id).replace(
+      /, Madrid$/,
+      "",
+    );
+    y = pdfText(doc, title, M, y, W, 6);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    const facts = [
+      payload.sqft ? `${payload.sqft} m²` : null,
+      payload.rooms != null ? `${payload.rooms} hab.` : null,
+      payload.bathrooms != null ? `${payload.bathrooms} baño` : null,
+      result.current_rent_eur != null
+        ? `Asking ${fmtEur(result.current_rent_eur)}/month`
+        : null,
+    ]
+      .filter(Boolean)
+      .join("  ·  ");
+    if (facts) {
+      doc.text(facts, M, y);
+      y += 4.5;
+    }
+    if (payload.location) {
+      doc.text("URL: " + location.href, M, y);
+      y += 4.5;
+    }
+    y += 2;
+
+    // ---- Peer-expected rent block ----
+    pdfHr(doc, M, y, 210 - M, [203, 213, 225]);
+    y += 5;
+    y = pdfSectionHeader(doc, "Peer-expected rent", M, y);
+
+    const bounds = intervalBounds(result);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor(15, 23, 42);
+    doc.text(fmtEur(result.predicted_rent_eur), M, y + 5);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    if (bounds) {
+      doc.text(
+        `80% range: ${fmtRange(bounds)}` +
+          (bounds.source === "approx" ? " (approx.)" : ""),
+        M + 50,
+        y + 5,
+      );
+    }
+    y += 10;
+
+    // Verdict line
+    doc.setFontSize(10);
+    doc.setTextColor(15, 23, 42);
+    y = pdfText(doc, fmtVerdict(result) + ".", M, y, W, 5);
+
+    if (result.delta_vs_current_eur != null) {
+      const delta = result.delta_vs_current_eur;
+      const sign = delta > 0 ? "+" : "";
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(9);
+      const note =
+        bounds && result.current_rent_eur != null
+          ? result.current_rent_eur >= bounds.lower &&
+            result.current_rent_eur <= bounds.upper
+            ? `Asking ${fmtEur(result.current_rent_eur)} sits inside the 80% range. Consistent with peers.`
+            : `Asking ${fmtEur(result.current_rent_eur)} sits outside the 80% range — a real pricing difference, not measurement noise.`
+          : `Gap between asking and peer estimate: ${sign}${fmtEur(delta)}.`;
+      y = pdfText(doc, note, M, y, W, 4.5);
+    }
+    y += 3;
+
+    // ---- Feature breakdown ----
+    pdfHr(doc, M, y, 210 - M, [203, 213, 225]);
+    y += 5;
+    y = pdfSectionHeader(doc, "Feature-by-feature breakdown", M, y);
+
+    const b = result.breakdown;
+    if (b) {
+      doc.setFontSize(9);
+      const rows = [];
+      rows.push([
+        "Tabular baseline",
+        fmtEur(b.tabular_eur),
+        b.tabular_note || "size, rooms, zone, amenities",
+      ]);
+      if (b.photos_delta_eur != null) {
+        const sign = b.photos_delta_eur > 0 ? "+" : "";
+        rows.push([
+          "+ photos (SigLIP)",
+          sign + fmtEur(b.photos_delta_eur),
+          b.photos_note || "",
+        ]);
+      }
+      if (b.text_delta_eur != null) {
+        const sign = b.text_delta_eur > 0 ? "+" : "";
+        rows.push([
+          "+ description (MiniLM)",
+          sign + fmtEur(b.text_delta_eur),
+          b.text_note || "",
+        ]);
+      }
+      rows.push([
+        "Full model",
+        fmtEur(b.full_eur ?? result.predicted_rent_eur),
+        "",
+      ]);
+
+      const labelX = M;
+      const valX = M + 56;
+      const noteX = M + 82;
+      for (const [label, val, note] of rows) {
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(71, 85, 105);
+        doc.text(label, labelX, y);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(15, 23, 42);
+        doc.text(val, valX, y);
+        if (note) {
+          doc.setFont("helvetica", "italic");
+          doc.setTextColor(148, 163, 184);
+          doc.text(note, noteX, y, { maxWidth: W - 64 });
+        }
+        y += 5;
+      }
+    } else {
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      y = pdfText(
+        doc,
+        "Breakdown not available — model returned point estimate only.",
+        M,
+        y,
+        W,
+        5,
+      );
+    }
+    y += 3;
+
+    // ---- Amenities + tabular ----
+    pdfHr(doc, M, y, 210 - M, [203, 213, 225]);
+    y += 5;
+    y = pdfSectionHeader(doc, "Listing details", M, y);
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text("Amenities:", M, y);
+    doc.setTextColor(15, 23, 42);
+    y = pdfText(doc, buildAmenityList(payload), M + 22, y, W - 22, 4.5);
+    y += 2;
+
+    // ---- Photo critiques ----
+    const impacts = result.per_photo_impact || [];
+    if (impacts.length > 0) {
+      pdfHr(doc, M, y, 210 - M, [203, 213, 225]);
+      y += 5;
+      y = pdfSectionHeader(
+        doc,
+        `Photo-by-photo analysis (${impacts.length} photos)`,
+        M,
+        y,
+      );
+
+      const { strengths, weaknesses } = buildPhotoCritiques(impacts);
+
+      doc.setFontSize(9.5);
+      if (strengths.length > 0) {
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(4, 120, 87);
+        doc.text("What works", M, y);
+        y += 5;
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(15, 23, 42);
+        for (const s of strengths) {
+          y = pdfText(doc, "•  " + s, M + 2, y, W - 2, 4.6);
+          y += 1;
+        }
+        y += 2;
+      }
+      if (weaknesses.length > 0) {
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(185, 28, 28);
+        doc.text("What needs work", M, y);
+        y += 5;
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(15, 23, 42);
+        for (const w of weaknesses) {
+          y = pdfText(doc, "•  " + w, M + 2, y, W - 2, 4.6);
+          y += 1;
+        }
+        y += 2;
+      }
+      if (strengths.length === 0 && weaknesses.length === 0) {
+        doc.setFont("helvetica", "italic");
+        doc.setTextColor(100, 116, 139);
+        y = pdfText(
+          doc,
+          "All photos rank within the model's neutral band — none stand out as strong or weak.",
+          M,
+          y,
+          W,
+          4.6,
+        );
+      }
+    }
+
+    // ---- Footer ----
+    const footerY = 297 - 14;
+    pdfHr(doc, M, footerY, 210 - M, [226, 232, 240]);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
+    pdfText(
+      doc,
+      "Generated by CasaIntel · multimodal peer-rent for Madrid · " +
+        "SigLIP image embeddings + multilingual MiniLM + gradient boosting on log-rent · " +
+        "R² 0.88, MAE €274, 5-fold CV on 6,047 listings · The 80% range reflects empirical residual quantiles, not a Bayesian credible interval.",
+      M,
+      footerY + 4,
+      W,
+      3.2,
+    );
+
+    // ---- Save ----
+    const safeId = (payload.listing_id || "listing").replace(/[^0-9a-z_-]/gi, "");
+    doc.save(`casaintel-${safeId}-${todayIso()}.pdf`);
   }
 
   // --------------------- boot ------------------------------------------

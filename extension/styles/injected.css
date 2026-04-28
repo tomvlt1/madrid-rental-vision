@@ -739,6 +739,39 @@
   font-style: italic;
 }
 
+/* ============== EXPORT PDF BUTTON =================================== */
+
+.casa-intel-panel-actions {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.casa-intel-export-btn {
+  appearance: none;
+  border: 1px solid #0f766e;
+  background: #ffffff;
+  color: #0f766e;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.casa-intel-export-btn:hover:not(:disabled) {
+  background: #0f766e;
+  color: #ffffff;
+}
+.casa-intel-export-btn:disabled {
+  opacity: 0.65;
+  cursor: progress;
+}
+
 /* ============== SAVED LISTINGS LAUNCHER + DRAWER ===================== */
 
 .casa-intel-saved-launcher {

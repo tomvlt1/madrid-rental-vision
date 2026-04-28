@@ -1379,8 +1379,7 @@
       el(
         "div",
         "casa-intel-whatif-hint",
-        "Toggle features and resize to see how peer-expected rent changes. " +
-          "Compared against your listing's tabular baseline (size, zone, amenities only).",
+        "Toggle features and resize to see how peer-expected rent changes",
       ),
     );
 
@@ -1388,15 +1387,19 @@
     // (image extraction takes seconds; toggles need to feel instant).
     const state = { ...payload, mode: "tabular" };
 
-    // Apples-to-apples baseline: the simulator runs in tabular-only mode,
-    // so the comparison reference should be gb_tab's prediction on the
-    // listing's actual amenities — not gb_all's headline (which folds in
-    // photos + description and would create a constant offset). We pull
-    // that from the breakdown's `tabular_eur` if available, otherwise
-    // fall back to the headline number with a known caveat.
-    const baseEur = (result.breakdown && result.breakdown.tabular_eur != null)
-      ? result.breakdown.tabular_eur
-      : result.predicted_rent_eur;
+    // Anchor the simulator on the headline number (gb_all, full multimodal).
+    // The simulator hits gb_tab on each toggle for speed, so its raw output
+    // is naturally lower than the headline by the photo+description
+    // contribution. We apply that contribution as a constant offset so the
+    // displayed numbers stay in headline space — toggling and untoggling
+    // an amenity correctly returns to the headline, while real toggle
+    // changes still produce a meaningful delta in the tabular dimension.
+    const baseEur = result.predicted_rent_eur;
+    const tabBaseEur =
+      result.breakdown && result.breakdown.tabular_eur != null
+        ? result.breakdown.tabular_eur
+        : result.predicted_rent_eur;
+    const photoTextOffset = baseEur - tabBaseEur;
 
     const togglesRow = el("div", "casa-intel-whatif-toggles");
     AMENITY_KEYS.forEach((k) => {
@@ -1494,7 +1497,11 @@
             return;
           }
           const data = await resp.json();
-          const newEur = data.predicted_rent_eur;
+          // The API returned a tabular-only prediction. Shift it back into
+          // headline space by adding the constant photo+text contribution.
+          // Now no-toggle-change lands exactly on baseEur, and toggle deltas
+          // are honest measurements of the tabular feature change.
+          const newEur = data.predicted_rent_eur + photoTextOffset;
           const delta = newEur - baseEur;
           resultVal.classList.remove("loading");
           // Animate from what's currently shown to the new value

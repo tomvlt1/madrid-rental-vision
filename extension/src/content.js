@@ -66,7 +66,10 @@
     const rounded = Math.round(n);
     const abs = Math.abs(rounded);
     const formatted = "€" + abs.toLocaleString("en-US");
-    return rounded < 0 ? "−" + formatted : formatted;
+    // ASCII hyphen, not U+2212. jsPDF's default Helvetica doesn't have
+    // the Unicode minus glyph, so it renders as a placeholder in PDFs.
+    // The visual difference in HTML is negligible.
+    return rounded < 0 ? "-" + formatted : formatted;
   }
 
   // Roll a euro number from `from` to `to` over `durationMs` and write the
@@ -1753,22 +1756,31 @@
     const total = impacts.length;
 
     const strengths = strong.slice(0, 3).map((p) => {
-      const noun = p.room_label ? p.room_label.toLowerCase() + " photo" : "photo";
       const rankPart = `(#${p.rank_in_listing} of ${total})`;
-      if (p.rank_in_listing === 1) {
-        return `The ${noun} ${rankPart} is the strongest in this listing — lead with it.`;
+      if (p.room_label) {
+        const noun = p.room_label.toLowerCase() + " photo";
+        if (p.rank_in_listing === 1) {
+          return `The ${noun} ${rankPart} is the strongest in this listing — lead with it.`;
+        }
+        return `The ${noun} ${rankPart} is among the strongest. Keep it prominent.`;
       }
-      return `The ${noun} ${rankPart} is among the strongest. Keep it prominent.`;
+      // No room label (listing not in our cached dataset). Cleaner copy
+      // that doesn't lean on "the photo".
+      if (p.rank_in_listing === 1) {
+        return `Photo #${p.rank_in_listing} is the strongest in this listing — lead with it.`;
+      }
+      return `Photo #${p.rank_in_listing} of ${total} ranks among the strongest. Keep it prominent.`;
     });
 
     const weaknesses = weak.slice(0, 4).map((p) => {
-      const noun = p.room_label ? p.room_label + " photo" : "Photo";
       const rankPart = `(#${p.rank_in_listing} of ${total})`;
-      const tip = (p.room_label && PHOTO_TIPS[p.room_label]) || FALLBACK_TIP;
-      // Capitalize first char if it's a "Photo" fallback, otherwise the room
-      // label itself ("Kitchen photo") looks right at sentence start.
-      const subject = p.room_label ? noun : "Photo";
-      return `${subject} ${rankPart} ranks low in this listing. ${tip}`;
+      if (p.room_label) {
+        const subject = p.room_label + " photo";
+        const tip = PHOTO_TIPS[p.room_label] || FALLBACK_TIP;
+        return `${subject} ${rankPart} ranks low in this listing. ${tip}`;
+      }
+      // No room label fallback
+      return `Photo #${p.rank_in_listing} of ${total} ranks low in this listing. ${FALLBACK_TIP}`;
     });
 
     return { strengths, weaknesses };

@@ -64,8 +64,9 @@ v2/*_original_copy.py
 # shipped in this repo so the public version focuses on v2. The v1 result
 # JSONs (models/cv_results.json, models/results.json) and the precomputed
 # v1 figures (notebooks/figures/) ARE tracked, so the v1 row in the README
-# stays citeable.
-src/
+# stays citeable. Anchored to root so we don't accidentally untrack
+# extension/src/ which is the Chrome extension source.
+/src/
 notebooks/01_eda.py
 notebooks/02_image_clusters.py
 notebooks/03_evaluation.py

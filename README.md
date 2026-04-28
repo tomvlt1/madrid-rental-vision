@@ -27,6 +27,32 @@ The project went through two full iterations. **This repo ships v2 only**; v1 is
 
 The full v2 changelog and per-quarter calibration breakdown lives in [`v2/README.md`](v2/README.md).
 
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+    A["Idealista listing<br/>(in browser)"] -->|DOM scrape| B["Chrome extension<br/>content script"]
+    B -->|POST /predict-live| C["FastAPI backend<br/>(local)"]
+
+    subgraph C["FastAPI backend"]
+      direction TB
+      D1["Tabular features<br/>sqm, zone, amenities"]
+      D2["Description<br/>→ MiniLM (multilingual)"]
+      D3["Photos<br/>→ SigLIP (per-photo, mean-pooled)"]
+      D1 --> E["Concat + PCA<br/>(image 50, text 30)"]
+      D2 --> E
+      D3 --> E
+      E --> F["Gradient Boosting<br/>on log-rent"]
+      F --> G["Post-hoc calibration<br/>(Q4 luxury bias fix)"]
+    end
+
+    G --> H["Response:<br/>point + interval +<br/>per-photo diagnostics"]
+    H --> B
+    B --> I["Injected UI:<br/>panel, gallery overlays,<br/>what-if simulator,<br/>saved listings"]
+```
+
+End-to-end: a listing the user is browsing on Idealista gets parsed by the extension, sent to the local FastAPI backend, multimodal-encoded, scored by gradient boosting on log-rent, calibrated, and the result is injected back into the page as a panel + per-photo gallery overlays.
+
 ## Results
 
 ### v2: full ablation grid, 5-fold CV, **N = 6,047 listings**

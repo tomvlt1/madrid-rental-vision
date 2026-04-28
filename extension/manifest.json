@@ -1,8 +1,12 @@
 {
   "manifest_version": 3,
   "name": "CasaIntel: Peer rent for Idealista",
-  "version": "0.1.0",
-  "description": "Shows peer-expected rent on Madrid Idealista listings. Backed by a ResNet+GB model trained on 1,470 rentals.",
+  "version": "0.2.0",
+  "description": "Multimodal peer-rent estimator for Madrid Idealista listings. SigLIP + multilingual text + gradient boosting (R² 0.88, MAE €274 on 6,047 listings).",
+  "permissions": [
+    "storage",
+    "clipboardWrite"
+  ],
   "host_permissions": [
     "https://www.idealista.com/*",
     "http://127.0.0.1:8000/*",

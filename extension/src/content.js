@@ -11,6 +11,28 @@
   "use strict";
 
   const API_URL = "http://127.0.0.1:8000";
+  const STORAGE_KEY_LISTINGS = "casaintel_saved_listings_v1";
+  const HISTORY_CAP = 10;
+  const AMENITY_KEYS = [
+    "ac",
+    "terrace",
+    "furnished",
+    "parking",
+    "elevator",
+    "exterior",
+    "heating",
+    "storage",
+  ];
+  const AMENITY_LABELS = {
+    ac: "AC",
+    terrace: "Terrace",
+    furnished: "Furnished",
+    parking: "Parking",
+    elevator: "Elevator",
+    exterior: "Exterior",
+    heating: "Heating",
+    storage: "Storage",
+  };
 
   // ------------------------- utilities ---------------------------------
 
@@ -490,13 +512,20 @@
     };
   }
 
-  function buildDetailPanel(result) {
+  function buildDetailPanel(result, payload) {
     const panel = el("div", "casa-intel-detail-panel casa-intel-" + result.diagnosis);
     panel.id = "casa-intel-panel";
 
-    panel.appendChild(
+    // Header row: title + pin button
+    const headerRow = el("div", "casa-intel-header-row");
+    headerRow.appendChild(
       el("div", "casa-intel-header", "CasaIntel · " + (result.cached ? "cached" : "live")),
     );
+    if (payload) {
+      headerRow.appendChild(buildPinButton(payload, result));
+    }
+    panel.appendChild(headerRow);
+
     const detailToneLabel =
       {
         overpriced: "Asking above peer",
@@ -521,13 +550,26 @@
 
     attachExpander(panel, result);
 
+    // What-if simulator: appears below the breakdown so users see the
+    // baseline first, then can experiment.
+    if (payload) {
+      panel.appendChild(buildWhatIfPanel(result, payload));
+    }
+
+    // Negotiation message generator: only renders when asking is meaningfully
+    // above peer (5%+) and not absurdly above (which usually means a typo).
+    if (payload) {
+      const negotiation = buildNegotiationSection(payload, result);
+      if (negotiation) panel.appendChild(negotiation);
+    }
+
     return panel;
   }
 
-  function injectDetailPanel(result, anchor) {
+  function injectDetailPanel(result, anchor, payload) {
     const existing = document.querySelector("#casa-intel-panel");
     if (existing) existing.remove();
-    const panel = buildDetailPanel(result);
+    const panel = buildDetailPanel(result, payload);
     insertBelow(anchor, panel);
   }
 
@@ -703,10 +745,14 @@
       });
       const data = await resp.json();
       if (resp.ok) {
-        injectDetailPanel(data, anchor);
+        injectDetailPanel(data, anchor, payload);
         if (data.per_photo_impact && data.per_photo_impact.length) {
           annotateGalleryPhotos(data.per_photo_impact);
         }
+        // If this listing is already pinned, auto-append a fresh history
+        // entry — every visit grows the history, which is what makes
+        // "saved listings" useful over time.
+        await autoAppendHistoryIfPinned(payload, data);
       } else {
         showSkeleton(anchor, "Backend returned " + resp.status);
       }
@@ -718,7 +764,613 @@
     }
   }
 
+  // ============== SAVED LISTINGS (chrome.storage) =====================
+
+  function chromeStorageAvailable() {
+    return typeof chrome !== "undefined" && chrome.storage && chrome.storage.local;
+  }
+
+  function getSavedListings() {
+    return new Promise((resolve) => {
+      if (!chromeStorageAvailable()) return resolve([]);
+      chrome.storage.local.get([STORAGE_KEY_LISTINGS], (out) => {
+        resolve(out[STORAGE_KEY_LISTINGS] || []);
+      });
+    });
+  }
+
+  function setSavedListings(arr) {
+    return new Promise((resolve) => {
+      if (!chromeStorageAvailable()) return resolve();
+      chrome.storage.local.set({ [STORAGE_KEY_LISTINGS]: arr }, resolve);
+    });
+  }
+
+  function snapshotFromResult(payload, result) {
+    return {
+      ts: Date.now(),
+      asking: result.current_rent_eur != null ? result.current_rent_eur : null,
+      predicted: result.predicted_rent_eur,
+      diagnosis: result.diagnosis || null,
+      mae: result.mae_eur != null ? result.mae_eur : null,
+    };
+  }
+
+  async function pinListing(payload, result) {
+    const all = await getSavedListings();
+    const existing = all.findIndex((r) => r.listing_id === payload.listing_id);
+    const snapshot = snapshotFromResult(payload, result);
+    if (existing === -1) {
+      all.push({
+        listing_id: payload.listing_id,
+        url: location.href,
+        title: payload.location || ("Listing " + payload.listing_id),
+        sqft: payload.sqft,
+        rooms: payload.rooms,
+        bathrooms: payload.bathrooms,
+        history: [snapshot],
+      });
+    } else {
+      all[existing].history.push(snapshot);
+      all[existing].history = all[existing].history.slice(-HISTORY_CAP);
+      all[existing].url = location.href;
+      all[existing].title = payload.location || all[existing].title;
+    }
+    await setSavedListings(all);
+    refreshLauncherBadge();
+    return all;
+  }
+
+  async function unpinListing(listing_id) {
+    const all = await getSavedListings();
+    const filtered = all.filter((r) => r.listing_id !== listing_id);
+    await setSavedListings(filtered);
+    refreshLauncherBadge();
+    return filtered;
+  }
+
+  async function isPinned(listing_id) {
+    const all = await getSavedListings();
+    return all.some((r) => r.listing_id === listing_id);
+  }
+
+  async function autoAppendHistoryIfPinned(payload, result) {
+    if (!payload || !payload.listing_id) return;
+    const all = await getSavedListings();
+    const idx = all.findIndex((r) => r.listing_id === payload.listing_id);
+    if (idx === -1) return;
+    // Skip if the most recent snapshot is less than 60s old (page reload spam)
+    const last = all[idx].history[all[idx].history.length - 1];
+    if (last && Date.now() - last.ts < 60 * 1000) return;
+    all[idx].history.push(snapshotFromResult(payload, result));
+    all[idx].history = all[idx].history.slice(-HISTORY_CAP);
+    await setSavedListings(all);
+  }
+
+  function buildPinButton(payload, result) {
+    const btn = el("button", "casa-intel-pin-btn");
+    btn.setAttribute("type", "button");
+    btn.textContent = "📌 Pin";
+    isPinned(payload.listing_id).then((pinned) => {
+      if (pinned) {
+        btn.textContent = "✓ Pinned";
+        btn.classList.add("pinned");
+      }
+    });
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const wasPinned = await isPinned(payload.listing_id);
+      if (wasPinned) {
+        await unpinListing(payload.listing_id);
+        btn.textContent = "📌 Pin";
+        btn.classList.remove("pinned");
+      } else {
+        await pinListing(payload, result);
+        btn.textContent = "✓ Pinned";
+        btn.classList.add("pinned");
+      }
+    });
+    return btn;
+  }
+
+  // ----- launcher (always-visible button bottom-right) + drawer ----------
+
+  function refreshLauncherBadge() {
+    const launcher = document.getElementById("casa-intel-saved-launcher");
+    if (!launcher) return;
+    getSavedListings().then((all) => {
+      launcher.textContent = all.length > 0 ? `📌 Saved (${all.length})` : "📌 Saved";
+    });
+  }
+
+  function attachSavedListingsLauncher() {
+    if (document.getElementById("casa-intel-saved-launcher")) return;
+    const launcher = el("button", "casa-intel-saved-launcher");
+    launcher.id = "casa-intel-saved-launcher";
+    launcher.setAttribute("type", "button");
+    launcher.textContent = "📌 Saved";
+    launcher.addEventListener("click", async () => {
+      const existing = document.getElementById("casa-intel-saved-drawer");
+      if (existing) {
+        existing.remove();
+        return;
+      }
+      const drawer = await buildSavedListingsDrawer();
+      document.body.appendChild(drawer);
+    });
+    document.body.appendChild(launcher);
+    refreshLauncherBadge();
+  }
+
+  async function buildSavedListingsDrawer() {
+    const all = await getSavedListings();
+    const drawer = el("div", "casa-intel-saved-drawer");
+    drawer.id = "casa-intel-saved-drawer";
+
+    const header = el("div", "casa-intel-saved-header");
+    const titleWrap = el("div", "casa-intel-saved-title-wrap");
+    titleWrap.appendChild(el("div", "casa-intel-saved-title-main", "Saved listings"));
+    titleWrap.appendChild(
+      el(
+        "div",
+        "casa-intel-saved-title-sub",
+        all.length === 0 ? "Pin listings from any detail page" : `${all.length} pinned`,
+      ),
+    );
+    header.appendChild(titleWrap);
+
+    const closeBtn = el("button", "casa-intel-saved-close", "×");
+    closeBtn.setAttribute("type", "button");
+    closeBtn.addEventListener("click", () => drawer.remove());
+    header.appendChild(closeBtn);
+    drawer.appendChild(header);
+
+    if (all.length === 0) {
+      drawer.appendChild(
+        el(
+          "div",
+          "casa-intel-saved-empty",
+          "No pinned listings yet. Click the 📌 Pin button on any listing's detail panel.",
+        ),
+      );
+      return drawer;
+    }
+
+    const list = el("div", "casa-intel-saved-list");
+    all.forEach((r) => list.appendChild(buildSavedRow(r, drawer)));
+    drawer.appendChild(list);
+
+    return drawer;
+  }
+
+  function buildSavedRow(record, drawer) {
+    const row = el("div", "casa-intel-saved-row");
+
+    const titleLink = document.createElement("a");
+    titleLink.className = "casa-intel-saved-row-title";
+    titleLink.textContent = record.title || "Listing " + record.listing_id;
+    titleLink.href = record.url;
+    titleLink.target = "_blank";
+    titleLink.rel = "noopener noreferrer";
+    row.appendChild(titleLink);
+
+    const meta = el("div", "casa-intel-saved-row-meta");
+    const metaParts = [];
+    if (record.sqft) metaParts.push(record.sqft + " m²");
+    if (record.rooms != null) metaParts.push(record.rooms + " hab.");
+    if (record.bathrooms != null) metaParts.push(record.bathrooms + " baño");
+    meta.textContent = metaParts.join(" · ");
+    row.appendChild(meta);
+
+    // History strip: dot per snapshot, color by diagnosis
+    if (record.history && record.history.length > 0) {
+      const histWrap = el("div", "casa-intel-saved-history");
+      histWrap.appendChild(el("span", "casa-intel-saved-history-label", "history:"));
+      record.history.forEach((h) => {
+        const dot = el("span", "casa-intel-saved-history-dot");
+        if (h.diagnosis) dot.classList.add("casa-intel-tone-" + h.diagnosis);
+        const dateStr = new Date(h.ts).toLocaleDateString();
+        const timeStr = new Date(h.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const askingStr = h.asking != null ? "asking " + fmtEur(h.asking) + ", " : "";
+        dot.title = `${dateStr} ${timeStr} — ${askingStr}predicted ${fmtEur(h.predicted)}`;
+        histWrap.appendChild(dot);
+      });
+      row.appendChild(histWrap);
+
+      const last = record.history[record.history.length - 1];
+      const snap = el("div", "casa-intel-saved-row-snapshot");
+      snap.appendChild(el("span", "casa-intel-saved-snap-label", "Predicted:"));
+      snap.appendChild(el("span", "casa-intel-saved-snap-val", fmtEur(last.predicted)));
+      if (last.asking != null) {
+        snap.appendChild(el("span", "casa-intel-saved-snap-label", "· Asking:"));
+        snap.appendChild(el("span", "casa-intel-saved-snap-val", fmtEur(last.asking)));
+        const delta = last.asking - last.predicted;
+        if (Math.abs(delta) > 50) {
+          const sign = delta > 0 ? "+" : "";
+          const cls = "casa-intel-saved-snap-delta " + (delta > 0 ? "neg" : "pos");
+          snap.appendChild(el("span", cls, sign + fmtEur(delta)));
+        }
+      }
+      row.appendChild(snap);
+
+      // Price change between first and last snapshot, if any
+      const first = record.history[0];
+      if (record.history.length > 1 && first.predicted && last.predicted) {
+        const change = last.predicted - first.predicted;
+        if (Math.abs(change) > 20) {
+          const sign = change > 0 ? "+" : "";
+          row.appendChild(
+            el(
+              "div",
+              "casa-intel-saved-row-change",
+              `Model prediction has shifted ${sign}${fmtEur(change)} since you pinned this.`,
+            ),
+          );
+        }
+      }
+    }
+
+    const actions = el("div", "casa-intel-saved-row-actions");
+    const openBtn = el("button", "casa-intel-saved-row-action", "Open listing");
+    openBtn.setAttribute("type", "button");
+    openBtn.addEventListener("click", () => {
+      window.open(record.url, "_blank", "noopener,noreferrer");
+    });
+    actions.appendChild(openBtn);
+
+    const refreshBtn = el(
+      "button",
+      "casa-intel-saved-row-action",
+      "↻ Re-evaluate (cached)",
+    );
+    refreshBtn.setAttribute("type", "button");
+    refreshBtn.addEventListener("click", async () => {
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = "Re-evaluating…";
+      await reEvaluateCachedListing(record);
+      drawer.remove();
+      const fresh = await buildSavedListingsDrawer();
+      document.body.appendChild(fresh);
+    });
+    actions.appendChild(refreshBtn);
+
+    const unpinBtn = el(
+      "button",
+      "casa-intel-saved-row-action casa-intel-saved-row-unpin",
+      "Unpin",
+    );
+    unpinBtn.setAttribute("type", "button");
+    unpinBtn.addEventListener("click", async () => {
+      await unpinListing(record.listing_id);
+      drawer.remove();
+      const fresh = await buildSavedListingsDrawer();
+      document.body.appendChild(fresh);
+    });
+    actions.appendChild(unpinBtn);
+
+    row.appendChild(actions);
+    return row;
+  }
+
+  async function reEvaluateCachedListing(record) {
+    // On-demand re-evaluation against the local backend's cache. We don't
+    // re-scrape Idealista (that needs the user opening the page), but we do
+    // recompute the model's view, which is meaningful because the cached
+    // prediction can shift if the model has been retrained or recalibrated.
+    try {
+      const resp = await fetch(API_URL + "/predict-live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listing_id: record.listing_id,
+          sqft: record.sqft || 0,
+          rooms: record.rooms,
+          bathrooms: record.bathrooms,
+          mode: "tabular",
+        }),
+      });
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      const all = await getSavedListings();
+      const idx = all.findIndex((r) => r.listing_id === record.listing_id);
+      if (idx === -1) return null;
+      all[idx].history.push({
+        ts: Date.now(),
+        asking: null,
+        predicted: data.predicted_rent_eur,
+        diagnosis: data.diagnosis || null,
+        mae: data.mae_eur || null,
+      });
+      all[idx].history = all[idx].history.slice(-HISTORY_CAP);
+      await setSavedListings(all);
+      return data;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ============== WHAT-IF SIMULATOR ====================================
+
+  function buildWhatIfPanel(result, payload) {
+    const wrap = el("div", "casa-intel-whatif");
+    wrap.appendChild(el("div", "casa-intel-details-header", "What if?"));
+    wrap.appendChild(
+      el(
+        "div",
+        "casa-intel-whatif-hint",
+        "Toggle features and resize to see how peer-expected rent changes",
+      ),
+    );
+
+    // Working copy of the payload. Recall the API in tabular mode for speed
+    // (image extraction takes seconds; toggles need to feel instant).
+    const state = { ...payload, mode: "tabular" };
+
+    const baseEur = result.predicted_rent_eur;
+
+    const togglesRow = el("div", "casa-intel-whatif-toggles");
+    AMENITY_KEYS.forEach((k) => {
+      const btn = el("button", "casa-intel-whatif-toggle");
+      btn.setAttribute("type", "button");
+      btn.setAttribute("data-amenity", k);
+      btn.textContent = AMENITY_LABELS[k];
+      if (state[k]) btn.classList.add("active");
+      btn.addEventListener("click", () => {
+        state[k] = !state[k];
+        btn.classList.toggle("active", state[k]);
+        debouncedRecall();
+      });
+      togglesRow.appendChild(btn);
+    });
+    wrap.appendChild(togglesRow);
+
+    // Sqft slider
+    const sliderRow = el("div", "casa-intel-whatif-slider-row");
+    sliderRow.appendChild(
+      el("span", "casa-intel-whatif-slider-label", "Size:"),
+    );
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = "20";
+    slider.max = "300";
+    slider.step = "5";
+    slider.value = String(state.sqft || 60);
+    slider.className = "casa-intel-whatif-slider";
+    const sliderVal = el(
+      "span",
+      "casa-intel-whatif-slider-val",
+      (state.sqft || 60) + " m²",
+    );
+    slider.addEventListener("input", () => {
+      state.sqft = parseInt(slider.value, 10);
+      sliderVal.textContent = state.sqft + " m²";
+      debouncedRecall();
+    });
+    sliderRow.appendChild(slider);
+    sliderRow.appendChild(sliderVal);
+    wrap.appendChild(sliderRow);
+
+    // Result line
+    const resultRow = el("div", "casa-intel-whatif-result");
+    resultRow.appendChild(
+      el("span", "casa-intel-whatif-result-label", "New peer estimate:"),
+    );
+    const resultVal = el(
+      "span",
+      "casa-intel-whatif-result-val",
+      fmtEur(baseEur),
+    );
+    resultRow.appendChild(resultVal);
+    const resultDelta = el("span", "casa-intel-whatif-result-delta", "(baseline)");
+    resultRow.appendChild(resultDelta);
+    wrap.appendChild(resultRow);
+
+    // Reset button
+    const resetBtn = el("button", "casa-intel-whatif-reset", "Reset to actual");
+    resetBtn.setAttribute("type", "button");
+    resetBtn.addEventListener("click", () => {
+      // Restore from original payload
+      AMENITY_KEYS.forEach((k) => {
+        state[k] = payload[k];
+        const btn = togglesRow.querySelector(`[data-amenity="${k}"]`);
+        if (btn) btn.classList.toggle("active", !!state[k]);
+      });
+      state.sqft = payload.sqft;
+      slider.value = String(state.sqft || 60);
+      sliderVal.textContent = (state.sqft || 60) + " m²";
+      resultVal.textContent = fmtEur(baseEur);
+      resultDelta.textContent = "(baseline)";
+      resultDelta.className = "casa-intel-whatif-result-delta";
+    });
+    wrap.appendChild(resetBtn);
+
+    // Debounced API recall
+    let timer = null;
+    function debouncedRecall() {
+      if (timer) clearTimeout(timer);
+      resultVal.classList.add("loading");
+      timer = setTimeout(async () => {
+        try {
+          const resp = await fetch(API_URL + "/predict-live", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(state),
+          });
+          if (!resp.ok) {
+            resultVal.classList.remove("loading");
+            return;
+          }
+          const data = await resp.json();
+          const newEur = data.predicted_rent_eur;
+          const delta = newEur - baseEur;
+          resultVal.textContent = fmtEur(newEur);
+          resultVal.classList.remove("loading");
+          if (Math.abs(delta) < 5) {
+            resultDelta.textContent = "(no meaningful change)";
+            resultDelta.className = "casa-intel-whatif-result-delta";
+          } else {
+            const sign = delta > 0 ? "+" : "";
+            resultDelta.textContent = "(" + sign + fmtEur(delta) + " vs original)";
+            resultDelta.className =
+              "casa-intel-whatif-result-delta " +
+              (delta > 0 ? "casa-intel-delta-pos" : "casa-intel-delta-neg");
+          }
+        } catch (e) {
+          resultVal.classList.remove("loading");
+        }
+      }, 450);
+    }
+
+    return wrap;
+  }
+
+  // ============== NEGOTIATION MESSAGE GENERATOR ========================
+
+  function pctOver(asking, predicted) {
+    if (!asking || !predicted || !Number.isFinite(asking) || !Number.isFinite(predicted)) {
+      return null;
+    }
+    return ((asking - predicted) / predicted) * 100;
+  }
+
+  function negotiationTier(pct) {
+    if (pct == null) return null;
+    if (pct < 5) return null; // not over enough to bother
+    if (pct < 10) return "slight";
+    if (pct < 25) return "notable";
+    return null; // >25% is usually a typo or luxury outlier — show warning, not message
+  }
+
+  function approxLowerBound(predicted) {
+    return Math.round(predicted * 0.93);
+  }
+  function approxUpperBound(predicted) {
+    return Math.round(predicted * 1.07);
+  }
+
+  function negotiationTemplate(tier, payload, result) {
+    const sqft = payload.sqft;
+    const rooms = payload.rooms;
+    const zoneText = (payload.location || "la zona").replace(/, Madrid$/, "");
+    const asking = result.current_rent_eur;
+    const predicted = Math.round(result.predicted_rent_eur);
+    const lower = approxLowerBound(predicted);
+    const upper = approxUpperBound(predicted);
+    const roomsBlock = rooms != null ? rooms + " habitaciones, " : "";
+
+    if (tier === "slight") {
+      return (
+        "Hola,\n\n" +
+        "Estoy interesado/a en su anuncio (" + roomsBlock + sqft + " m² en " + zoneText + ").\n\n" +
+        "He estado comparando viviendas similares en la misma zona y veo que el precio " +
+        "podría ajustarse ligeramente. ¿Habría flexibilidad sobre los " + asking + " €/mes actuales? " +
+        "Estaría dispuesto/a a firmar rápido si llegamos a un acuerdo razonable.\n\n" +
+        "Gracias y un saludo."
+      );
+    }
+
+    if (tier === "notable") {
+      return (
+        "Hola,\n\n" +
+        "Le escribo en relación a su anuncio (" + roomsBlock + sqft + " m², " + zoneText + ").\n\n" +
+        "Tras analizar viviendas comparables en " + zoneText + ", propiedades similares " +
+        "se alquilan en torno a €" + lower + "–€" + upper + " al mes. El precio actual de " +
+        asking + " €/mes está claramente por encima de este rango.\n\n" +
+        "¿Sería posible considerar una rebaja para situarlo dentro del rango de mercado? " +
+        "Estoy preparado/a para firmar de inmediato si encontramos un punto de acuerdo.\n\n" +
+        "Quedo a la espera de su respuesta. Un saludo."
+      );
+    }
+
+    return null;
+  }
+
+  function buildNegotiationSection(payload, result) {
+    const pct = pctOver(result.current_rent_eur, result.predicted_rent_eur);
+    const tier = negotiationTier(pct);
+
+    // Outlier warning when asking is way above peer (>25%): probably a typo
+    // or a luxury listing the model can't see. Don't generate a message.
+    if (pct != null && pct >= 25) {
+      const wrap = el("div", "casa-intel-negotiate");
+      wrap.appendChild(
+        el("div", "casa-intel-details-header", "Outlier warning"),
+      );
+      wrap.appendChild(
+        el(
+          "div",
+          "casa-intel-negotiate-warning",
+          "The asking price is " + Math.round(pct) + "% above the peer estimate. " +
+            "This is far enough above market that it's likely a luxury outlier the " +
+            "model can't see, or a price typo. We're not generating a negotiation " +
+            "message for outliers like this — it would over-promise.",
+        ),
+      );
+      return wrap;
+    }
+
+    if (!tier) return null;
+
+    const message = negotiationTemplate(tier, payload, result);
+    if (!message) return null;
+
+    const tierLabels = {
+      slight: "Slightly above peer (1–10%): polite query about flexibility",
+      notable: "Notably above peer (10–25%): direct ask with comparables",
+    };
+
+    const wrap = el("div", "casa-intel-negotiate");
+    wrap.appendChild(el("div", "casa-intel-details-header", "Negotiation message"));
+    wrap.appendChild(el("div", "casa-intel-negotiate-tier", tierLabels[tier]));
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "casa-intel-negotiate-textarea";
+    textarea.value = message;
+    textarea.rows = 9;
+    textarea.spellcheck = false;
+    wrap.appendChild(textarea);
+
+    const actions = el("div", "casa-intel-negotiate-actions");
+    const copyBtn = el("button", "casa-intel-negotiate-copy", "Copy to clipboard");
+    copyBtn.setAttribute("type", "button");
+    copyBtn.addEventListener("click", async () => {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(textarea.value);
+        } else {
+          textarea.select();
+          document.execCommand("copy");
+        }
+        copyBtn.textContent = "Copied ✓";
+        copyBtn.classList.add("copied");
+        setTimeout(() => {
+          copyBtn.textContent = "Copy to clipboard";
+          copyBtn.classList.remove("copied");
+        }, 1800);
+      } catch (e) {
+        copyBtn.textContent = "Copy failed";
+      }
+    });
+    actions.appendChild(copyBtn);
+
+    wrap.appendChild(actions);
+    wrap.appendChild(
+      el(
+        "div",
+        "casa-intel-negotiate-disclaimer",
+        "Edit the message before sending. We don't actually send anything — this is just a starting draft.",
+      ),
+    );
+
+    return wrap;
+  }
+
   // --------------------- boot ------------------------------------------
+
+  // Saved listings launcher renders on every page (search and detail), so
+  // the user can always reach their pinned set.
+  attachSavedListingsLauncher();
 
   const pageType = getPageType();
   if (pageType === "list") {

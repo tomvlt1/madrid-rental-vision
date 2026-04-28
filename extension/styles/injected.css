@@ -997,7 +997,10 @@
   text-transform: lowercase;
 }
 
-/* "↗ see fix" link on weak photos */
+/* "↗ see fix" link on weak photos.
+   The parent .casa-intel-photo-overlay has pointer-events: none so users
+   can click through to Idealista's native gallery; we explicitly re-enable
+   pointer events on this button so it actually receives the click. */
 .casa-intel-photo-enhance-link {
   appearance: none;
   border: none;
@@ -1010,6 +1013,7 @@
   font-family: inherit;
   font-weight: 500;
   cursor: pointer;
+  pointer-events: auto;
   transition: background 100ms ease;
 }
 .casa-intel-photo-enhance-link:hover {

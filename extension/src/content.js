@@ -745,11 +745,25 @@
       );
       enhanceLink.setAttribute("type", "button");
       enhanceLink.title = "Preview an auto-brightness/contrast/saturation fix";
-      enhanceLink.addEventListener("click", (e) => {
+      // Capture-phase + immediate-propagation-stop so Idealista's gallery
+      // lightbox handlers (attached higher up the DOM tree) don't fire on
+      // the same click and try to open the lightbox over our modal.
+      const swallow = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        showPhotoEnhanceModal(impact);
+        e.stopImmediatePropagation();
+      };
+      ["mousedown", "pointerdown", "touchstart"].forEach((evt) => {
+        enhanceLink.addEventListener(evt, swallow, { capture: true });
       });
+      enhanceLink.addEventListener(
+        "click",
+        (e) => {
+          swallow(e);
+          showPhotoEnhanceModal(impact);
+        },
+        { capture: true },
+      );
       badge.appendChild(enhanceLink);
     }
     parent.appendChild(badge);

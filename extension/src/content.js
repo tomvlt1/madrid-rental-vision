@@ -1379,7 +1379,8 @@
       el(
         "div",
         "casa-intel-whatif-hint",
-        "Toggle features and resize to see how peer-expected rent changes",
+        "Toggle features and resize to see how peer-expected rent changes. " +
+          "Compared against your listing's tabular baseline (size, zone, amenities only).",
       ),
     );
 
@@ -1387,7 +1388,15 @@
     // (image extraction takes seconds; toggles need to feel instant).
     const state = { ...payload, mode: "tabular" };
 
-    const baseEur = result.predicted_rent_eur;
+    // Apples-to-apples baseline: the simulator runs in tabular-only mode,
+    // so the comparison reference should be gb_tab's prediction on the
+    // listing's actual amenities — not gb_all's headline (which folds in
+    // photos + description and would create a constant offset). We pull
+    // that from the breakdown's `tabular_eur` if available, otherwise
+    // fall back to the headline number with a known caveat.
+    const baseEur = (result.breakdown && result.breakdown.tabular_eur != null)
+      ? result.breakdown.tabular_eur
+      : result.predicted_rent_eur;
 
     const togglesRow = el("div", "casa-intel-whatif-toggles");
     AMENITY_KEYS.forEach((k) => {
@@ -1502,11 +1511,11 @@
           }
           displayedEur = newEur;
           if (Math.abs(delta) < 5) {
-            resultDelta.textContent = "(no meaningful change)";
+            resultDelta.textContent = "(matches your listing)";
             resultDelta.className = "casa-intel-whatif-result-delta";
           } else {
             const sign = delta > 0 ? "+" : "";
-            resultDelta.textContent = "(" + sign + fmtEur(delta) + " vs original)";
+            resultDelta.textContent = "(" + sign + fmtEur(delta) + " vs your listing)";
             resultDelta.className =
               "casa-intel-whatif-result-delta " +
               (delta > 0 ? "casa-intel-delta-pos" : "casa-intel-delta-neg");
